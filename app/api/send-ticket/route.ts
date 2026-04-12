@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import sgMail from "@sendgrid/mail";
 import fs from "node:fs";
 import path from "node:path";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+sgMail.setApiKey(process.env.SENDGRID_API_KEY || "");
 
 export async function POST(req: Request) {
   try {
@@ -20,28 +20,21 @@ export async function POST(req: Request) {
     } = body;
 
     const posterPath = path.join(process.cwd(), "public", "afis.jpg");
+    const attachments =
+      fs.existsSync(posterPath)
+        ? [
+            {
+              content: fs.readFileSync(posterPath).toString("base64"),
+              filename: "afis.jpg",
+              type: "image/jpeg",
+              disposition: "attachment",
+            },
+          ]
+        : [];
 
-    let attachments: {
-      filename: string;
-      content: Buffer;
-      contentType: string;
-    }[] = [];
-
-    if (fs.existsSync(posterPath)) {
-      const posterBuffer = fs.readFileSync(posterPath);
-
-      attachments = [
-        {
-          filename: "afis.jpg",
-          content: posterBuffer,
-          contentType: "image/jpeg",
-        },
-      ];
-    }
-
-    const result = await resend.emails.send({
-      from: process.env.MAIL_FROM || "onboarding@resend.dev",
+    await sgMail.send({
       to: customerEmail,
+      from: process.env.MAIL_FROM || "",
       subject: `Biletiniz Hazır - ${eventTitle}`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 24px; color: #111;">
@@ -64,10 +57,9 @@ export async function POST(req: Request) {
       attachments,
     });
 
-    return NextResponse.json({ success: true, result });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("send-ticket error:", error);
-
     return NextResponse.json(
       { success: false, message: "Mail gönderimi başarısız." },
       { status: 500 }

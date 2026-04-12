@@ -848,21 +848,20 @@ function RevenueCard({ eventId }: { eventId: number }) {
     getRevenue();
 
     const channel = supabase
-      .channel(`sales-room-${eventId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "sales",
-          filter: `event_id=eq.${eventId}`,
-        },
-        () => {
-          getRevenue();
-        }
-      )
-      .subscribe();
-
+  .channel(`sales-room-${eventId}`)
+  .on("postgres_changes", {
+    event: "INSERT",
+    schema: "public",
+    table: "sales",
+    filter: `event_id=eq.${eventId}`,
+  }, () => getRevenue())
+  .on("postgres_changes", {
+    event: "UPDATE",
+    schema: "public",
+    table: "sales",
+    filter: `event_id=eq.${eventId}`,
+  }, () => getRevenue())
+  .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
