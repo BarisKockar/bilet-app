@@ -31,8 +31,10 @@ type SettingsItem = {
 };
 
 type SaleRow = {
+  id?: number;
   amount: number;
   payment_type: "cash" | "iban";
+  is_refunded?: boolean;
 };
 
 const columns = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
@@ -123,6 +125,27 @@ export default function Page() {
     };
   }, [eventId]);
 
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      if (selectedSeat && selectedSeat.status === "locking") {
+        try {
+          await supabase.rpc("unlock_seat", {
+            p_event_id: eventId,
+            p_seat_id: selectedSeat.id,
+          });
+        } catch (error) {
+          console.error("beforeUnload unlock error:", error);
+        }
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [selectedSeat, eventId]);
+
   async function getSeats() {
     const { data, error } = await supabase
       .from("seats")
@@ -177,7 +200,36 @@ export default function Page() {
     }
 
     if (seat.status === "sold") return;
-    if (seat.status === "locking") return;
+
+    const isSameSelectedSeat = selectedSeat?.id === seat.id;
+    if (isSameSelectedSeat) return;
+
+    const isLockedByAnotherUser =
+      seat.status === "locking" &&
+      seat.locked_by &&
+      seat.locked_by !== userName;
+
+    if (isLockedByAnotherUser) {
+      alert("Bu koltuk başka bir kullanıcı tarafından işlemde.");
+      return;
+    }
+
+    if (
+      selectedSeat &&
+      selectedSeat.id !== seat.id &&
+      selectedSeat.status === "locking"
+    ) {
+      const { error: unlockError } = await supabase.rpc("unlock_seat", {
+        p_event_id: eventId,
+        p_seat_id: selectedSeat.id,
+      });
+
+      if (unlockError) {
+        console.error("previous unlock_seat error:", unlockError);
+        alert("Önceki koltuk bırakılamadı.");
+        return;
+      }
+    }
 
     const { data, error } = await supabase.rpc("lock_seat", {
       p_event_id: eventId,
@@ -188,6 +240,7 @@ export default function Page() {
     if (error) {
       console.error("lock_seat error:", error);
       alert("Koltuk kilitlenemedi.");
+      await getSeats();
       return;
     }
 
@@ -202,93 +255,95 @@ export default function Page() {
       status: "locking",
       locked_by: userName,
     });
+
+    await getSeats();
   }
 
   async function completeSale() {
-  if (!selectedSeat) return;
+    if (!selectedSeat) return;
 
-  if (!customerName.trim() || !customerEmail.trim() || !amount) {
-    alert("Lütfen tüm alanları doldur.");
-    return;
-  }
+    if (!customerName.trim() || !customerEmail.trim() || !amount) {
+      alert("Lütfen tüm alanları doldur.");
+      return;
+    }
 
-  setIsSubmitting(true);
+    setIsSubmitting(true);
 
-  const { data, error } = await supabase.rpc("complete_sale", {
-    p_event_id: eventId,
-    p_seat_id: selectedSeat.id,
-    p_customer_name: customerName.trim(),
-    p_customer_email: customerEmail.trim(),
-    p_payment_type: paymentType,
-    p_amount: Number(amount),
-  });
-
-  if (error) {
-    console.error("complete_sale error:", error);
-    setIsSubmitting(false);
-    alert("Satış tamamlanamadı.");
-    return;
-  }
-
-  if (!data?.success) {
-    setIsSubmitting(false);
-    alert(data?.message || "Satış başarısız.");
-    return;
-  }
-
-  const { data: eventData, error: eventError } = await supabase
-    .from("events")
-    .select("*")
-    .eq("id", eventId)
-    .single();
-
-  if (eventError) {
-    console.error("event fetch error:", eventError);
-  }
-
-  try {
-    const mailResponse = await fetch("/api/send-ticket", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim(),
-        seatCode: selectedSeat.seat_code,
-        eventTitle: eventData?.title || `Etkinlik ${eventId}`,
-        eventDate: eventData?.event_date || "",
-        paymentType,
-        amount: Number(amount),
-      }),
+    const { data, error } = await supabase.rpc("complete_sale", {
+      p_event_id: eventId,
+      p_seat_id: selectedSeat.id,
+      p_customer_name: customerName.trim(),
+      p_customer_email: customerEmail.trim(),
+      p_payment_type: paymentType,
+      p_amount: Number(amount),
     });
 
-    const mailResult = await mailResponse.json();
-
-    if (mailResult?.success) {
-      await supabase.from("notifications").insert({
-        event_id: eventId,
-        type: "email_sent",
-        message: `${selectedSeat.seat_code} için bilet maili gönderildi - ${customerEmail.trim()}`,
-      });
-    } else {
-      console.error("mail send failed:", mailResult);
-      await supabase.from("notifications").insert({
-        event_id: eventId,
-        type: "email_sent",
-        message: `${selectedSeat.seat_code} için mail gönderimi başarısız oldu - ${customerEmail.trim()}`,
-      });
+    if (error) {
+      console.error("complete_sale error:", error);
+      setIsSubmitting(false);
+      alert("Satış tamamlanamadı.");
+      return;
     }
-  } catch (mailError) {
-    console.error("mail request error:", mailError);
+
+    if (!data?.success) {
+      setIsSubmitting(false);
+      alert(data?.message || "Satış başarısız.");
+      return;
+    }
+
+    const { data: eventData, error: eventError } = await supabase
+      .from("events")
+      .select("*")
+      .eq("id", eventId)
+      .single();
+
+    if (eventError) {
+      console.error("event fetch error:", eventError);
+    }
+
+    try {
+      const mailResponse = await fetch("/api/send-ticket", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim(),
+          seatCode: selectedSeat.seat_code,
+          eventTitle: eventData?.title || `Etkinlik ${eventId}`,
+          eventDate: eventData?.event_date || "",
+          paymentType,
+          amount: Number(amount),
+        }),
+      });
+
+      const mailResult = await mailResponse.json();
+
+      if (mailResult?.success) {
+        await supabase.from("notifications").insert({
+          event_id: eventId,
+          type: "email_sent",
+          message: `${selectedSeat.seat_code} için bilet maili gönderildi - ${customerEmail.trim()}`,
+        });
+      } else {
+        console.error("mail send failed:", mailResult);
+        await supabase.from("notifications").insert({
+          event_id: eventId,
+          type: "email_sent",
+          message: `${selectedSeat.seat_code} için mail gönderimi başarısız oldu - ${customerEmail.trim()}`,
+        });
+      }
+    } catch (mailError) {
+      console.error("mail request error:", mailError);
+    }
+
+    setIsSubmitting(false);
+
+    await resetForm(false);
+    await getSeats();
+    await getNotifications();
   }
-
-  setIsSubmitting(false);
-
-  await resetForm(false);
-  await getSeats();
-  await getNotifications();
-}
 
   async function resetForm(shouldUnlock = true) {
     if (shouldUnlock && selectedSeat && selectedSeat.status === "locking") {
@@ -310,7 +365,9 @@ export default function Page() {
   }
 
   async function refundSeat(seat: SeatItem) {
-    const confirmed = window.confirm(`${seat.seat_code} koltuğunu iade etmek istiyor musun?`);
+    const confirmed = window.confirm(
+      `${seat.seat_code} koltuğunu iade etmek istiyor musun?`
+    );
     if (!confirmed) return;
 
     const { data: sale, error: saleError } = await supabase
@@ -366,7 +423,32 @@ export default function Page() {
     await getNotifications();
   }
 
- 
+  async function changeUserName() {
+    if (selectedSeat && selectedSeat.status === "locking") {
+      const { error } = await supabase.rpc("unlock_seat", {
+        p_event_id: eventId,
+        p_seat_id: selectedSeat.id,
+      });
+
+      if (error) {
+        console.error("unlock before username change error:", error);
+      }
+    }
+
+    const name = window.prompt("Yeni kullanıcı adı gir", userName || "");
+    if (!name || !name.trim()) return;
+
+    localStorage.setItem("ticket_user_name", name.trim());
+    setUserName(name.trim());
+
+    setSelectedSeat(null);
+    setCustomerName("");
+    setCustomerEmail("");
+    setPaymentType("cash");
+    setAmount("");
+
+    await getSeats();
+  }
 
   const seatMap = useMemo(() => {
     const map = new Map<string, SeatItem>();
@@ -391,7 +473,24 @@ export default function Page() {
       }}
     >
       <div style={{ maxWidth: 1500, margin: "0 auto" }}>
-        
+        <div
+          style={{
+            marginBottom: 20,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <Link href="/" style={{ color: "#93c5fd", textDecoration: "none" }}>
+            ← Günlere dön
+          </Link>
+
+          <button onClick={changeUserName} style={userButtonStyle}>
+            Kullanıcı: {userName || "Tanımsız"}
+          </button>
+        </div>
 
         <div
           style={{
@@ -707,7 +806,7 @@ function RowRenderer({
                 return;
               }
 
-              if (!isLocking) {
+              if (!isLocking || isMine) {
                 onSeatClick(seat);
               }
             }}
@@ -719,7 +818,7 @@ function RowRenderer({
               background: isSold ? "#ef4444" : isLocking ? "#f59e0b" : "#22c55e",
               color: "#001018",
               fontWeight: 700,
-              cursor: isSold ? "pointer" : isLocking ? "not-allowed" : "pointer",
+              cursor: isSold ? "pointer" : isLocking && !isMine ? "not-allowed" : "pointer",
               opacity: isLocking && !isMine ? 0.85 : 1,
             }}
             title={
