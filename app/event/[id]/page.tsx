@@ -366,13 +366,7 @@ export default function Page() {
     await getNotifications();
   }
 
-  async function changeUserName() {
-    const name = window.prompt("Yeni kullanıcı adı gir", userName || "");
-    if (!name || !name.trim()) return;
-
-    localStorage.setItem("ticket_user_name", name.trim());
-    setUserName(name.trim());
-  }
+ 
 
   const seatMap = useMemo(() => {
     const map = new Map<string, SeatItem>();
@@ -397,24 +391,7 @@ export default function Page() {
       }}
     >
       <div style={{ maxWidth: 1500, margin: "0 auto" }}>
-        <div
-          style={{
-            marginBottom: 20,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <Link href="/" style={{ color: "#93c5fd", textDecoration: "none" }}>
-            ← Günlere dön
-          </Link>
-
-          <button onClick={changeUserName} style={userButtonStyle}>
-            Kullanıcı: {userName || "Tanımsız"}
-          </button>
-        </div>
+        
 
         <div
           style={{
