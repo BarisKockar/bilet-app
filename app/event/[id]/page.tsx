@@ -630,20 +630,18 @@ export default function Page() {
     ? selectedSeats.map((s) => s.seat_code).join(", ")
     : selectedSeat?.seat_code || "-";
 
-  const qrValue =
-  typeof window !== "undefined"
-    ? `${window.location.origin}/odeme?bank=${encodeURIComponent(
-        ibanInfo.bank_name
-      )}&receiver=${encodeURIComponent(
-        ibanInfo.iban_name
-      )}&iban=${encodeURIComponent(
-        ibanInfo.iban_number
-      )}&desc=${encodeURIComponent(
-        paymentDescription
-      )}&amount=${encodeURIComponent(
-        amount || ""
-      )}`
-    : "";
+  const PUBLIC_BASE_URL = "https://bilet-app-863n.vercel.app/"; // kendi canlı domainin neyse onu yaz
+
+  const qrValue = `${PUBLIC_BASE_URL}/odeme?bank=${encodeURIComponent(
+    ibanInfo.bank_name
+  )}&receiver=${encodeURIComponent(
+    ibanInfo.iban_name
+  )}&iban=${encodeURIComponent(
+    ibanInfo.iban_number
+  )}&desc=${encodeURIComponent(
+    paymentDescription
+  )}&amount=${encodeURIComponent(amount || "")}`;
+
   return (
     <main
       style={{
