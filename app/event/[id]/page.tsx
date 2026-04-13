@@ -630,7 +630,7 @@ export default function Page() {
     ? selectedSeats.map((s) => s.seat_code).join(", ")
     : selectedSeat?.seat_code || "-";
 
-  const qrValue = `IBAN:${ibanInfo.iban_number};ALICI:${ibanInfo.iban_name};ACIKLAMA:${paymentDescription}`;
+  const qrValue = "https://bilet-app.vercel.app/iban";
   return (
     <main
       style={{
