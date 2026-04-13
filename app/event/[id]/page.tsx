@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-
+import { QRCodeCanvas } from "qrcode.react";
 type SeatItem = {
   id: number;
   event_id: number;
@@ -50,7 +50,9 @@ const maxRows = 20;
 export default function Page() {
   const params = useParams();
   const eventId = Number(params.id);
-
+  const IBAN = "TR62 0006 4000 0014 3790 2346 55"; // kendi iban
+  const RECEIVER = "FATMA PELİN ZAİM";
+  const DESCRIPTION = "";
   const [isMobile, setIsMobile] = useState(false);
 
   const [seats, setSeats] = useState<SeatItem[]>([]);
@@ -103,7 +105,11 @@ export default function Page() {
       setUserName(name.trim());
     }
   }, []);
-
+  const qrValue = `
+IBAN:${IBAN}
+NAME:${RECEIVER}
+DESC:${DESCRIPTION}
+`.trim();
   useEffect(() => {
     if (!eventId) return;
 
@@ -1007,26 +1013,57 @@ export default function Page() {
                   </div>
 
                   {paymentType === "iban" && (
-                    <div
-                      style={{
-                        background: "#0f172a",
-                        padding: 12,
-                        borderRadius: 12,
-                        marginBottom: 12,
-                        fontSize: 14,
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      <div>
-                        <strong>Banka:</strong> {ibanInfo.bank_name}
+                    <>
+                      <div
+                        style={{
+                          marginTop: 20,
+                          background: "#111827",
+                          padding: 16,
+                          borderRadius: 14,
+                          textAlign: "center",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <h3 style={{ marginBottom: 10 }}>IBAN ile Ödeme</h3>
+
+                        <QRCodeCanvas
+                          value={qrValue}
+                          size={180}
+                          bgColor="#ffffff"
+                          fgColor="#000000"
+                          level="H"
+                        />
+
+                        <p style={{ marginTop: 10, fontSize: 13, color: "#9ca3af" }}>
+                          QR kodu mobil bankacılıkla okut
+                        </p>
+
+                        <p style={{ fontSize: 12, color: "#6b7280" }}>
+                          {IBAN}
+                        </p>
                       </div>
-                      <div>
-                        <strong>Alıcı:</strong> {ibanInfo.iban_name}
+
+                      <div
+                        style={{
+                          background: "#0f172a",
+                          padding: 12,
+                          borderRadius: 12,
+                          marginBottom: 12,
+                          fontSize: 14,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        <div>
+                          <strong>Banka:</strong> {ibanInfo.bank_name}
+                        </div>
+                        <div>
+                          <strong>Alıcı:</strong> {ibanInfo.iban_name}
+                        </div>
+                        <div>
+                          <strong>IBAN:</strong> {ibanInfo.iban_number}
+                        </div>
                       </div>
-                      <div>
-                        <strong>IBAN:</strong> {ibanInfo.iban_number}
-                      </div>
-                    </div>
+                    </>
                   )}
 
                   <button
