@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { QRCodeCanvas } from "qrcode.react";
+
 type SeatItem = {
   id: number;
   event_id: number;
@@ -54,7 +54,39 @@ export default function Page() {
   const RECEIVER = "FATMA PELİN ZAİM";
   const DESCRIPTION = "";
   const [isMobile, setIsMobile] = useState(false);
+  async function copyIban() {
+  try {
+    await navigator.clipboard.writeText(ibanInfo.iban_number || "");
+    alert("IBAN kopyalandı.");
+  } catch (error) {
+    console.error("copyIban error:", error);
+    alert("IBAN kopyalanamadı.");
+  }
+}
 
+async function copyReceiver() {
+  try {
+    await navigator.clipboard.writeText(ibanInfo.iban_name || "");
+    alert("Alıcı adı kopyalandı.");
+  } catch (error) {
+    console.error("copyReceiver error:", error);
+    alert("Alıcı adı kopyalanamadı.");
+  }
+}
+
+async function copyDescription() {
+  const description = isMultiSelectMode
+    ? selectedSeats.map((s) => s.seat_code).join(", ")
+    : selectedSeat?.seat_code || "";
+
+  try {
+    await navigator.clipboard.writeText(description);
+    alert("Açıklama kopyalandı.");
+  } catch (error) {
+    console.error("copyDescription error:", error);
+    alert("Açıklama kopyalanamadı.");
+  }
+}
   const [seats, setSeats] = useState<SeatItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
@@ -1014,35 +1046,58 @@ DESC:${DESCRIPTION}
 
                   {paymentType === "iban" && (
                     <>
-                      <div
-                        style={{
-                          marginTop: 20,
-                          background: "#111827",
-                          padding: 16,
-                          borderRadius: 14,
-                          textAlign: "center",
-                          marginBottom: 12,
-                        }}
-                      >
-                        <h3 style={{ marginBottom: 10 }}>IBAN ile Ödeme</h3>
+                     
+                    {paymentType === "iban" && (
+  <div
+    style={{
+      background: "#0f172a",
+      padding: 12,
+      borderRadius: 12,
+      marginBottom: 12,
+      fontSize: 14,
+      lineHeight: 1.6,
+    }}
+  >
+    <div style={{ marginBottom: 10 }}>
+      <strong>Banka:</strong> {ibanInfo.bank_name}
+    </div>
 
-                        <QRCodeCanvas
-                          value={qrValue}
-                          size={180}
-                          bgColor="#ffffff"
-                          fgColor="#000000"
-                          level="H"
-                        />
+    <div style={{ marginBottom: 10 }}>
+      <strong>Alıcı:</strong> {ibanInfo.iban_name}
+    </div>
 
-                        <p style={{ marginTop: 10, fontSize: 13, color: "#9ca3af" }}>
-                          QR kodu mobil bankacılıkla okut
-                        </p>
+    <div style={{ marginBottom: 10 }}>
+      <strong>IBAN:</strong> {ibanInfo.iban_number}
+    </div>
 
-                        <p style={{ fontSize: 12, color: "#6b7280" }}>
-                          {IBAN}
-                        </p>
-                      </div>
+    <div style={{ marginBottom: 14 }}>
+      <strong>Açıklama:</strong>{" "}
+      {isMultiSelectMode
+        ? selectedSeats.map((s) => s.seat_code).join(", ")
+        : selectedSeat?.seat_code || "-"}
+    </div>
 
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        flexDirection: isMobile ? "column" : "row",
+      }}
+    >
+      <button onClick={copyIban} style={secondaryButton}>
+        IBAN’ı Kopyala
+      </button>
+
+      <button onClick={copyReceiver} style={secondaryButton}>
+        Alıcıyı Kopyala
+      </button>
+
+      <button onClick={copyDescription} style={secondaryButton}>
+        Açıklamayı Kopyala
+      </button>
+    </div>
+  </div>
+)}
                       <div
                         style={{
                           background: "#0f172a",
