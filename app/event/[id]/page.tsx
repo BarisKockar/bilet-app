@@ -630,13 +630,7 @@ export default function Page() {
     ? selectedSeats.map((s) => s.seat_code).join(", ")
     : selectedSeat?.seat_code || "-";
 
-  const qrValue = `
-Banka: ${ibanInfo.bank_name}
-Alıcı: ${ibanInfo.iban_name}
-IBAN: ${ibanInfo.iban_number}
-Açıklama: ${paymentDescription}
-`.trim();
-
+  const qrValue = `IBAN:${ibanInfo.iban_number};ALICI:${ibanInfo.iban_name};ACIKLAMA:${paymentDescription}`;
   return (
     <main
       style={{
@@ -1018,7 +1012,7 @@ Açıklama: ${paymentDescription}
                     </button>
                   </div>
 
-                  
+
 
                   <button
                     onClick={isMultiSelectMode ? completeMultiSale : completeSale}
@@ -1028,8 +1022,8 @@ Açıklama: ${paymentDescription}
                     {isSubmitting
                       ? "Kaydediliyor..."
                       : isMultiSelectMode
-                      ? `Toplu Satışı Tamamla (${selectedSeats.length})`
-                      : "Satışı Tamamla"}
+                        ? `Toplu Satışı Tamamla (${selectedSeats.length})`
+                        : "Satışı Tamamla"}
                   </button>
 
                   <button onClick={() => void resetForm(true)} style={secondaryButton}>
@@ -1057,47 +1051,47 @@ Açıklama: ${paymentDescription}
             >
               <h3 style={{ marginTop: 0 }}>Bildirimler</h3>
               {paymentType === "iban" && (
-  <div
-    style={{
-      background: "#0f172a",
-      padding: 12,
-      borderRadius: 12,
-      marginBottom: 12,
-      fontSize: 14,
-      lineHeight: 1.6,
-      textAlign: "center",
-    }}
-  >
-    <div style={{ marginBottom: 10 }}>
-      <strong>Banka:</strong> {ibanInfo.bank_name}
-    </div>
+                <div
+                  style={{
+                    background: "#0f172a",
+                    padding: 12,
+                    borderRadius: 12,
+                    marginBottom: 12,
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ marginBottom: 10 }}>
+                    <strong>Banka:</strong> {ibanInfo.bank_name}
+                  </div>
 
-    <div style={{ marginBottom: 10 }}>
-      <strong>Alıcı:</strong> {ibanInfo.iban_name}
-    </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <strong>Alıcı:</strong> {ibanInfo.iban_name}
+                  </div>
 
-    <div style={{ marginBottom: 10 }}>
-      <strong>IBAN:</strong> {ibanInfo.iban_number}
-    </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <strong>IBAN:</strong> {ibanInfo.iban_number}
+                  </div>
 
-    <div style={{ marginBottom: 14 }}>
-      <strong>Açıklama:</strong> {paymentDescription}
-    </div>
+                  <div style={{ marginBottom: 14 }}>
+                    <strong>Açıklama:</strong> {paymentDescription}
+                  </div>
 
-    <QRCodeCanvas
-      value={qrValue}
-      size={180}
-      bgColor="#ffffff"
-      fgColor="#000000"
-      level="H"
-      includeMargin
-    />
+                  <QRCodeCanvas
+                    value={qrValue}
+                    size={180}
+                    bgColor="#ffffff"
+                    fgColor="#000000"
+                    level="H"
+                    includeMargin
+                  />
 
-    <p style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
-      Telefon kamerasıyla okutunca IBAN bilgileri görünür.
-    </p>
-  </div>
-)}
+                  <p style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
+                    Telefon kamerasıyla okutunca IBAN bilgileri görünür.
+                  </p>
+                </div>
+              )}
               <div style={{ display: "grid", gap: 10 }}>
                 {notifications.map((n) => (
                   <div
@@ -1212,10 +1206,10 @@ function RowRenderer({
               isSold
                 ? "İade etmek için tıkla"
                 : isLocking
-                ? isMine
-                  ? "Bu koltuk sende işlemde"
-                  : "Bu koltuk başka bir kullanıcıda işlemde"
-                : "Satış için tıkla"
+                  ? isMine
+                    ? "Bu koltuk sende işlemde"
+                    : "Bu koltuk başka bir kullanıcıda işlemde"
+                  : "Satış için tıkla"
             }
           >
             {seat.seat_code}
