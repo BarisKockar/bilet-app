@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { QRCodeCanvas } from "qrcode.react";
 
 type SeatItem = {
   id: number;
@@ -48,6 +49,7 @@ const columns = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 const maxRows = 20;
 
 export default function Page() {
+  
   const params = useParams();
   const eventId = Number(params.id);
   const IBAN = "TR62 0006 4000 0014 3790 2346 55"; // kendi iban
@@ -55,38 +57,38 @@ export default function Page() {
   const DESCRIPTION = "";
   const [isMobile, setIsMobile] = useState(false);
   async function copyIban() {
-  try {
-    await navigator.clipboard.writeText(ibanInfo.iban_number || "");
-    alert("IBAN kopyalandı.");
-  } catch (error) {
-    console.error("copyIban error:", error);
-    alert("IBAN kopyalanamadı.");
+    try {
+      await navigator.clipboard.writeText(ibanInfo.iban_number || "");
+      alert("IBAN kopyalandı.");
+    } catch (error) {
+      console.error("copyIban error:", error);
+      alert("IBAN kopyalanamadı.");
+    }
   }
-}
 
-async function copyReceiver() {
-  try {
-    await navigator.clipboard.writeText(ibanInfo.iban_name || "");
-    alert("Alıcı adı kopyalandı.");
-  } catch (error) {
-    console.error("copyReceiver error:", error);
-    alert("Alıcı adı kopyalanamadı.");
+  async function copyReceiver() {
+    try {
+      await navigator.clipboard.writeText(ibanInfo.iban_name || "");
+      alert("Alıcı adı kopyalandı.");
+    } catch (error) {
+      console.error("copyReceiver error:", error);
+      alert("Alıcı adı kopyalanamadı.");
+    }
   }
-}
 
-async function copyDescription() {
-  const description = isMultiSelectMode
-    ? selectedSeats.map((s) => s.seat_code).join(", ")
-    : selectedSeat?.seat_code || "";
+  async function copyDescription() {
+    const description = isMultiSelectMode
+      ? selectedSeats.map((s) => s.seat_code).join(", ")
+      : selectedSeat?.seat_code || "";
 
-  try {
-    await navigator.clipboard.writeText(description);
-    alert("Açıklama kopyalandı.");
-  } catch (error) {
-    console.error("copyDescription error:", error);
-    alert("Açıklama kopyalanamadı.");
+    try {
+      await navigator.clipboard.writeText(description);
+      alert("Açıklama kopyalandı.");
+    } catch (error) {
+      console.error("copyDescription error:", error);
+      alert("Açıklama kopyalanamadı.");
+    }
   }
-}
   const [seats, setSeats] = useState<SeatItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
@@ -1046,58 +1048,58 @@ DESC:${DESCRIPTION}
 
                   {paymentType === "iban" && (
                     <>
-                     
-                    {paymentType === "iban" && (
-  <div
-    style={{
-      background: "#0f172a",
-      padding: 12,
-      borderRadius: 12,
-      marginBottom: 12,
-      fontSize: 14,
-      lineHeight: 1.6,
-    }}
-  >
-    <div style={{ marginBottom: 10 }}>
-      <strong>Banka:</strong> {ibanInfo.bank_name}
-    </div>
 
-    <div style={{ marginBottom: 10 }}>
-      <strong>Alıcı:</strong> {ibanInfo.iban_name}
-    </div>
+                      {paymentType === "iban" && (
+                        <div
+                          style={{
+                            background: "#0f172a",
+                            padding: 12,
+                            borderRadius: 12,
+                            marginBottom: 12,
+                            fontSize: 14,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          <div style={{ marginBottom: 10 }}>
+                            <strong>Banka:</strong> {ibanInfo.bank_name}
+                          </div>
 
-    <div style={{ marginBottom: 10 }}>
-      <strong>IBAN:</strong> {ibanInfo.iban_number}
-    </div>
+                          <div style={{ marginBottom: 10 }}>
+                            <strong>Alıcı:</strong> {ibanInfo.iban_name}
+                          </div>
 
-    <div style={{ marginBottom: 14 }}>
-      <strong>Açıklama:</strong>{" "}
-      {isMultiSelectMode
-        ? selectedSeats.map((s) => s.seat_code).join(", ")
-        : selectedSeat?.seat_code || "-"}
-    </div>
+                          <div style={{ marginBottom: 10 }}>
+                            <strong>IBAN:</strong> {ibanInfo.iban_number}
+                          </div>
 
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        flexDirection: isMobile ? "column" : "row",
-      }}
-    >
-      <button onClick={copyIban} style={secondaryButton}>
-        IBAN’ı Kopyala
-      </button>
+                          <div style={{ marginBottom: 14 }}>
+                            <strong>Açıklama:</strong>{" "}
+                            {isMultiSelectMode
+                              ? selectedSeats.map((s) => s.seat_code).join(", ")
+                              : selectedSeat?.seat_code || "-"}
+                          </div>
 
-      <button onClick={copyReceiver} style={secondaryButton}>
-        Alıcıyı Kopyala
-      </button>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              flexDirection: isMobile ? "column" : "row",
+                            }}
+                          >
+                            <button onClick={copyIban} style={secondaryButton}>
+                              IBAN’ı Kopyala
+                            </button>
 
-      <button onClick={copyDescription} style={secondaryButton}>
-        Açıklamayı Kopyala
-      </button>
-    </div>
-  </div>
-)}
+                            <button onClick={copyReceiver} style={secondaryButton}>
+                              Alıcıyı Kopyala
+                            </button>
+
+                            <button onClick={copyDescription} style={secondaryButton}>
+                              Açıklamayı Kopyala
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       <div
                         style={{
                           background: "#0f172a",
