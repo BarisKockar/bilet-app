@@ -794,8 +794,8 @@ export default function Page() {
               style={{
                 display: "flex",
                 flexDirection: isMobile ? "column" : "row",
-                alignItems: "center",
-                justifyContent: "center",
+                alignItems: isMobile ? "stretch" : "center",
+                justifyContent: isMobile ? "flex-start" : "center",
                 gap: isMobile ? 16 : 28,
                 marginBottom: 20,
               }}
@@ -840,45 +840,54 @@ export default function Page() {
 
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: `${labelWidth}px repeat(${columns.length}, ${seatWidth}px)`,
-                    gap: isMobile ? 4 : 6,
-                    alignItems: "center",
-                    width: "max-content",
-                    margin: "0 auto",
+                    width: "100%",
+                    overflowX: "auto",
+                    WebkitOverflowScrolling: "touch",
                   }}
                 >
-                  <div></div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `${labelWidth}px repeat(${columns.length}, ${seatWidth}px)`,
+                      gap: isMobile ? 4 : 6,
+                      alignItems: "center",
+                      width: "max-content",
+                      margin: 0,
+                      minWidth: "max-content",
+                    }}
+                  >
+                    <div></div>
 
-                  {columns.map((col) => (
-                    <div
-                      key={col}
-                      style={{
-                        textAlign: "center",
-                        fontWeight: 700,
-                        color: "#cbd5e1",
-                        paddingBottom: 6,
-                        fontSize: isMobile ? 11 : 14,
-                      }}
-                    >
-                      {col}
-                    </div>
-                  ))}
+                    {columns.map((col) => (
+                      <div
+                        key={col}
+                        style={{
+                          textAlign: "center",
+                          fontWeight: 700,
+                          color: "#cbd5e1",
+                          paddingBottom: 6,
+                          fontSize: isMobile ? 11 : 14,
+                        }}
+                      >
+                        {col}
+                      </div>
+                    ))}
 
-                  {Array.from({ length: maxRows }, (_, i) => i + 1).map((row) => (
-                    <RowRenderer
-                      key={row}
-                      row={row}
-                      columns={columns}
-                      seatMap={seatMap}
-                      currentUserName={userName}
-                      onSeatClick={handleSeatClick}
-                      onRefund={refundSeat}
-                      seatWidth={seatWidth}
-                      seatHeight={seatHeight}
-                      labelWidth={labelWidth}
-                    />
-                  ))}
+                    {Array.from({ length: maxRows }, (_, i) => i + 1).map((row) => (
+                      <RowRenderer
+                        key={row}
+                        row={row}
+                        columns={columns}
+                        seatMap={seatMap}
+                        currentUserName={userName}
+                        onSeatClick={handleSeatClick}
+                        onRefund={refundSeat}
+                        seatWidth={seatWidth}
+                        seatHeight={seatHeight}
+                        labelWidth={labelWidth}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1028,8 +1037,8 @@ export default function Page() {
                     {isSubmitting
                       ? "Kaydediliyor..."
                       : isMultiSelectMode
-                      ? `Toplu Satışı Tamamla (${selectedSeats.length})`
-                      : "Satışı Tamamla"}
+                        ? `Toplu Satışı Tamamla (${selectedSeats.length})`
+                        : "Satışı Tamamla"}
                   </button>
 
                   <button onClick={() => resetForm(true)} style={secondaryButton}>
@@ -1171,10 +1180,10 @@ function RowRenderer({
               isSold
                 ? "İade etmek için tıkla"
                 : isLocking
-                ? isMine
-                  ? "Bu koltuk sende işlemde"
-                  : "Bu koltuk başka bir kullanıcıda işlemde"
-                : "Satış için tıkla"
+                  ? isMine
+                    ? "Bu koltuk sende işlemde"
+                    : "Bu koltuk başka bir kullanıcıda işlemde"
+                  : "Satış için tıkla"
             }
           >
             {seat.seat_code}
