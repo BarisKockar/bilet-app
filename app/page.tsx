@@ -12,6 +12,13 @@ type EventItem = {
   slug: string;
 };
 
+type CustomerMailItem = {
+  id: number;
+  email: string;
+  is_checked: boolean;
+  created_at: string;
+};
+
 export default function Home() {
   const router = useRouter();
 
@@ -20,6 +27,10 @@ export default function Home() {
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
   const [isMobile, setIsMobile] = useState(false);
+
+  const [customerMails, setCustomerMails] = useState<CustomerMailItem[]>([]);
+  const [showMailMenu, setShowMailMenu] = useState(false);
+  const [loadingMails, setLoadingMails] = useState(false);
 
   useEffect(() => {
     const checkScreen = () => setIsMobile(window.innerWidth < 768);
@@ -47,6 +58,7 @@ export default function Home() {
   useEffect(() => {
     if (isCheckingAuth) return;
     getEvents();
+    syncCustomerMails();
   }, [isCheckingAuth]);
 
   useEffect(() => {
@@ -82,6 +94,72 @@ export default function Home() {
     }
 
     setEvents((data as EventItem[]) || []);
+  }
+
+  async function syncCustomerMails() {
+    setLoadingMails(true);
+
+    const { data: salesData, error: salesError } = await supabase
+      .from("sales")
+      .select("customer_email")
+      .order("created_at", { ascending: false });
+
+    if (salesError) {
+      console.error("syncCustomerMails sales error:", salesError);
+      setLoadingMails(false);
+      return;
+    }
+
+    const gmailEmails = Array.from(
+      new Set(
+        ((salesData as { customer_email?: string }[]) || [])
+          .map((item) => (item.customer_email || "").trim().toLowerCase())
+          .filter((email) => email.endsWith("@gmail.com"))
+      )
+    );
+
+    if (gmailEmails.length > 0) {
+      const rowsToInsert = gmailEmails.map((email) => ({
+        email,
+        is_checked: false,
+      }));
+
+      const { error: upsertError } = await supabase
+        .from("customer_mail_tracking")
+        .upsert(rowsToInsert, { onConflict: "email" });
+
+      if (upsertError) {
+        console.error("syncCustomerMails upsert error:", upsertError);
+      }
+    }
+
+    const { data: trackingData, error: trackingError } = await supabase
+      .from("customer_mail_tracking")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (trackingError) {
+      console.error("syncCustomerMails tracking error:", trackingError);
+      setLoadingMails(false);
+      return;
+    }
+
+    setCustomerMails((trackingData as CustomerMailItem[]) || []);
+    setLoadingMails(false);
+  }
+
+  async function toggleMailChecked(item: CustomerMailItem) {
+    const { error } = await supabase
+      .from("customer_mail_tracking")
+      .update({ is_checked: !item.is_checked })
+      .eq("id", item.id);
+
+    if (error) {
+      console.error("toggleMailChecked error:", error);
+      return;
+    }
+
+    await syncCustomerMails();
   }
 
   function logout() {
@@ -138,10 +216,23 @@ export default function Home() {
               display: "flex",
               gap: 8,
               flexWrap: "wrap",
+              position: "relative",
               flexDirection: isMobile ? "column" : "row",
               width: isMobile ? "100%" : "auto",
             }}
           >
+            <button
+              onClick={() => {
+                setShowMailMenu((prev) => !prev);
+                if (!showMailMenu) {
+                  syncCustomerMails();
+                }
+              }}
+              style={{ ...mailMenuButton, width: isMobile ? "100%" : "auto" }}
+            >
+              Müşteri Mail Takibi
+            </button>
+
             {userRole === "admin" && (
               <button
                 onClick={() => router.push("/admin")}
@@ -157,6 +248,69 @@ export default function Home() {
             >
               Çıkış Yap
             </button>
+
+            {showMailMenu && (
+              <div
+                style={{
+                  ...mailMenuBox,
+                  right: isMobile ? "auto" : 0,
+                  left: isMobile ? 0 : "auto",
+                  width: isMobile ? "100%" : 340,
+                  maxWidth: isMobile ? "100%" : "90vw",
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 700,
+                    marginBottom: 10,
+                    fontSize: 14,
+                    color: "white",
+                  }}
+                >
+                  Gmail Müşteri Takibi
+                </div>
+
+                {loadingMails ? (
+                  <div style={{ color: "#cbd5e1", fontSize: 14 }}>Yükleniyor...</div>
+                ) : customerMails.length === 0 ? (
+                  <div style={{ color: "#94a3b8", fontSize: 14 }}>
+                    Henüz gmail müşteri kaydı yok.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: 8,
+                      maxHeight: 320,
+                      overflowY: "auto",
+                    }}
+                  >
+                    {customerMails.map((item) => (
+                      <label
+                        key={item.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          background: "#0f172a",
+                          borderRadius: 10,
+                          padding: "10px 12px",
+                          fontSize: 14,
+                          color: "white",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={item.is_checked}
+                          onChange={() => toggleMailChecked(item)}
+                        />
+                        <span style={{ wordBreak: "break-word" }}>{item.email}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -242,4 +396,28 @@ const logoutButton: React.CSSProperties = {
   color: "white",
   fontWeight: 700,
   cursor: "pointer",
+};
+
+const mailMenuButton: React.CSSProperties = {
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "none",
+  background: "#8b5cf6",
+  color: "white",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const mailMenuBox: React.CSSProperties = {
+  position: "absolute",
+  top: "100%",
+  marginTop: 8,
+  width: 340,
+  maxWidth: "90vw",
+  background: "#111827",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: 14,
+  padding: 12,
+  boxShadow: "0 12px 30px rgba(0,0,0,0.35)",
+  zIndex: 999,
 };
