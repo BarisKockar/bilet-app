@@ -49,46 +49,11 @@ const columns = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 const maxRows = 20;
 
 export default function Page() {
-  
   const params = useParams();
   const eventId = Number(params.id);
-  const IBAN = "TR62 0006 4000 0014 3790 2346 55"; // kendi iban
-  const RECEIVER = "FATMA PELİN ZAİM";
-  const DESCRIPTION = "";
+
   const [isMobile, setIsMobile] = useState(false);
-  async function copyIban() {
-    try {
-      await navigator.clipboard.writeText(ibanInfo.iban_number || "");
-      alert("IBAN kopyalandı.");
-    } catch (error) {
-      console.error("copyIban error:", error);
-      alert("IBAN kopyalanamadı.");
-    }
-  }
 
-  async function copyReceiver() {
-    try {
-      await navigator.clipboard.writeText(ibanInfo.iban_name || "");
-      alert("Alıcı adı kopyalandı.");
-    } catch (error) {
-      console.error("copyReceiver error:", error);
-      alert("Alıcı adı kopyalanamadı.");
-    }
-  }
-
-  async function copyDescription() {
-    const description = isMultiSelectMode
-      ? selectedSeats.map((s) => s.seat_code).join(", ")
-      : selectedSeat?.seat_code || "";
-
-    try {
-      await navigator.clipboard.writeText(description);
-      alert("Açıklama kopyalandı.");
-    } catch (error) {
-      console.error("copyDescription error:", error);
-      alert("Açıklama kopyalanamadı.");
-    }
-  }
   const [seats, setSeats] = useState<SeatItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
@@ -139,17 +104,13 @@ export default function Page() {
       setUserName(name.trim());
     }
   }, []);
-  const qrValue = `
-IBAN:${IBAN}
-NAME:${RECEIVER}
-DESC:${DESCRIPTION}
-`.trim();
+
   useEffect(() => {
     if (!eventId) return;
 
-    getSeats();
-    getNotifications();
-    getSettings();
+    void getSeats();
+    void getNotifications();
+    void getSettings();
   }, [eventId]);
 
   useEffect(() => {
@@ -166,7 +127,7 @@ DESC:${DESCRIPTION}
           filter: `event_id=eq.${eventId}`,
         },
         () => {
-          getSeats();
+          void getSeats();
         }
       )
       .subscribe();
@@ -182,14 +143,14 @@ DESC:${DESCRIPTION}
           filter: `event_id=eq.${eventId}`,
         },
         () => {
-          getNotifications();
+          void getNotifications();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(seatChannel);
-      supabase.removeChannel(notificationChannel);
+      void supabase.removeChannel(seatChannel);
+      void supabase.removeChannel(notificationChannel);
     };
   }, [eventId]);
 
@@ -197,8 +158,8 @@ DESC:${DESCRIPTION}
     if (!eventId) return;
 
     const interval = setInterval(() => {
-      getSeats();
-      getNotifications();
+      void getSeats();
+      void getNotifications();
     }, 2000);
 
     return () => clearInterval(interval);
@@ -665,6 +626,17 @@ DESC:${DESCRIPTION}
   const seatHeight = isMobile ? 34 : 42;
   const labelWidth = isMobile ? 32 : 50;
 
+  const paymentDescription = isMultiSelectMode
+    ? selectedSeats.map((s) => s.seat_code).join(", ")
+    : selectedSeat?.seat_code || "-";
+
+  const qrValue = `
+Banka: ${ibanInfo.bank_name}
+Alıcı: ${ibanInfo.iban_name}
+IBAN: ${ibanInfo.iban_number}
+Açıklama: ${paymentDescription}
+`.trim();
+
   return (
     <main
       style={{
@@ -1046,82 +1018,7 @@ DESC:${DESCRIPTION}
                     </button>
                   </div>
 
-                  {paymentType === "iban" && (
-                    <>
-
-                      {paymentType === "iban" && (
-                        <div
-                          style={{
-                            background: "#0f172a",
-                            padding: 12,
-                            borderRadius: 12,
-                            marginBottom: 12,
-                            fontSize: 14,
-                            lineHeight: 1.6,
-                          }}
-                        >
-                          <div style={{ marginBottom: 10 }}>
-                            <strong>Banka:</strong> {ibanInfo.bank_name}
-                          </div>
-
-                          <div style={{ marginBottom: 10 }}>
-                            <strong>Alıcı:</strong> {ibanInfo.iban_name}
-                          </div>
-
-                          <div style={{ marginBottom: 10 }}>
-                            <strong>IBAN:</strong> {ibanInfo.iban_number}
-                          </div>
-
-                          <div style={{ marginBottom: 14 }}>
-                            <strong>Açıklama:</strong>{" "}
-                            {isMultiSelectMode
-                              ? selectedSeats.map((s) => s.seat_code).join(", ")
-                              : selectedSeat?.seat_code || "-"}
-                          </div>
-
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 8,
-                              flexDirection: isMobile ? "column" : "row",
-                            }}
-                          >
-                            <button onClick={copyIban} style={secondaryButton}>
-                              IBAN’ı Kopyala
-                            </button>
-
-                            <button onClick={copyReceiver} style={secondaryButton}>
-                              Alıcıyı Kopyala
-                            </button>
-
-                            <button onClick={copyDescription} style={secondaryButton}>
-                              Açıklamayı Kopyala
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      <div
-                        style={{
-                          background: "#0f172a",
-                          padding: 12,
-                          borderRadius: 12,
-                          marginBottom: 12,
-                          fontSize: 14,
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        <div>
-                          <strong>Banka:</strong> {ibanInfo.bank_name}
-                        </div>
-                        <div>
-                          <strong>Alıcı:</strong> {ibanInfo.iban_name}
-                        </div>
-                        <div>
-                          <strong>IBAN:</strong> {ibanInfo.iban_number}
-                        </div>
-                      </div>
-                    </>
-                  )}
+                  
 
                   <button
                     onClick={isMultiSelectMode ? completeMultiSale : completeSale}
@@ -1131,11 +1028,11 @@ DESC:${DESCRIPTION}
                     {isSubmitting
                       ? "Kaydediliyor..."
                       : isMultiSelectMode
-                        ? `Toplu Satışı Tamamla (${selectedSeats.length})`
-                        : "Satışı Tamamla"}
+                      ? `Toplu Satışı Tamamla (${selectedSeats.length})`
+                      : "Satışı Tamamla"}
                   </button>
 
-                  <button onClick={() => resetForm(true)} style={secondaryButton}>
+                  <button onClick={() => void resetForm(true)} style={secondaryButton}>
                     Vazgeç
                   </button>
                 </>
@@ -1159,7 +1056,48 @@ DESC:${DESCRIPTION}
               }}
             >
               <h3 style={{ marginTop: 0 }}>Bildirimler</h3>
+              {paymentType === "iban" && (
+  <div
+    style={{
+      background: "#0f172a",
+      padding: 12,
+      borderRadius: 12,
+      marginBottom: 12,
+      fontSize: 14,
+      lineHeight: 1.6,
+      textAlign: "center",
+    }}
+  >
+    <div style={{ marginBottom: 10 }}>
+      <strong>Banka:</strong> {ibanInfo.bank_name}
+    </div>
 
+    <div style={{ marginBottom: 10 }}>
+      <strong>Alıcı:</strong> {ibanInfo.iban_name}
+    </div>
+
+    <div style={{ marginBottom: 10 }}>
+      <strong>IBAN:</strong> {ibanInfo.iban_number}
+    </div>
+
+    <div style={{ marginBottom: 14 }}>
+      <strong>Açıklama:</strong> {paymentDescription}
+    </div>
+
+    <QRCodeCanvas
+      value={qrValue}
+      size={180}
+      bgColor="#ffffff"
+      fgColor="#000000"
+      level="H"
+      includeMargin
+    />
+
+    <p style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
+      Telefon kamerasıyla okutunca IBAN bilgileri görünür.
+    </p>
+  </div>
+)}
               <div style={{ display: "grid", gap: 10 }}>
                 {notifications.map((n) => (
                   <div
@@ -1274,10 +1212,10 @@ function RowRenderer({
               isSold
                 ? "İade etmek için tıkla"
                 : isLocking
-                  ? isMine
-                    ? "Bu koltuk sende işlemde"
-                    : "Bu koltuk başka bir kullanıcıda işlemde"
-                  : "Satış için tıkla"
+                ? isMine
+                  ? "Bu koltuk sende işlemde"
+                  : "Bu koltuk başka bir kullanıcıda işlemde"
+                : "Satış için tıkla"
             }
           >
             {seat.seat_code}
@@ -1294,7 +1232,7 @@ function RevenueCard({ eventId }: { eventId: number }) {
   const [ibanTotal, setIbanTotal] = useState(0);
 
   useEffect(() => {
-    getRevenue();
+    void getRevenue();
 
     const channel = supabase
       .channel(`sales-room-${eventId}`)
@@ -1307,7 +1245,7 @@ function RevenueCard({ eventId }: { eventId: number }) {
           filter: `event_id=eq.${eventId}`,
         },
         () => {
-          getRevenue();
+          void getRevenue();
         }
       )
       .on(
@@ -1319,17 +1257,17 @@ function RevenueCard({ eventId }: { eventId: number }) {
           filter: `event_id=eq.${eventId}`,
         },
         () => {
-          getRevenue();
+          void getRevenue();
         }
       )
       .subscribe();
 
     const interval = setInterval(() => {
-      getRevenue();
+      void getRevenue();
     }, 2000);
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
       clearInterval(interval);
     };
   }, [eventId]);
