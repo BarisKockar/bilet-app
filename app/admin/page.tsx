@@ -48,6 +48,8 @@ type AuditLogItem = {
 export default function AdminPage() {
   const router = useRouter();
 
+  const [isMobile, setIsMobile] = useState(false);
+
   const [users, setUsers] = useState<AppUser[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [sales, setSales] = useState<SaleItem[]>([]);
@@ -71,6 +73,13 @@ export default function AdminPage() {
   const [seatRows, setSeatRows] = useState("20");
   const [seatColumns, setSeatColumns] = useState("A,B,C,D,E,F,G,H,I,J,K,L");
   const [excludedSeats, setExcludedSeats] = useState("");
+
+  useEffect(() => {
+    const checkScreen = () => setIsMobile(window.innerWidth < 768);
+    checkScreen();
+    window.addEventListener("resize", checkScreen);
+    return () => window.removeEventListener("resize", checkScreen);
+  }, []);
 
   useEffect(() => {
     const loggedIn = localStorage.getItem("is_logged_in");
@@ -318,11 +327,7 @@ export default function AdminPage() {
     setRunningReset(false);
 
     if (notificationError || salesError || seatsError) {
-      console.error({
-        notificationError,
-        salesError,
-        seatsError,
-      });
+      console.error({ notificationError, salesError, seatsError });
       alert("Sistem sıfırlanırken hata oluştu.");
       return;
     }
@@ -452,7 +457,6 @@ export default function AdminPage() {
 
   const filteredSales = useMemo(() => {
     const q = searchText.trim().toLowerCase();
-
     if (!q) return sales;
 
     return sales.filter((sale) => {
@@ -472,7 +476,7 @@ export default function AdminPage() {
         minHeight: "100vh",
         background: "#0b1020",
         color: "white",
-        padding: 24,
+        padding: isMobile ? 12 : 24,
         fontFamily: "Arial, sans-serif",
       }}
     >
@@ -481,20 +485,24 @@ export default function AdminPage() {
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: isMobile ? "stretch" : "center",
             gap: 12,
             flexWrap: "wrap",
+            flexDirection: isMobile ? "column" : "row",
             marginBottom: 24,
           }}
         >
           <div>
-            <h1 style={{ margin: 0, fontSize: 32 }}>Admin Paneli</h1>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 26 : 32 }}>Admin Paneli</h1>
             <p style={{ color: "#cbd5e1" }}>
               Kullanıcılar, etkinlikler, satışlar, loglar ve koltuk planı yönetimi
             </p>
           </div>
 
-          <button onClick={() => router.push("/")} style={secondaryBtn}>
+          <button
+            onClick={() => router.push("/")}
+            style={{ ...secondaryBtn, width: isMobile ? "100%" : "auto" }}
+          >
             Ana Sayfa
           </button>
         </div>
@@ -503,10 +511,10 @@ export default function AdminPage() {
           <div style={cardStyle}>
             <h2 style={{ marginTop: 0 }}>Sistem İşlemleri</h2>
 
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", flexDirection: isMobile ? "column" : "row" }}>
               <button
                 onClick={resetAllSystem}
-                style={dangerBtn}
+                style={{ ...dangerBtn, width: isMobile ? "100%" : "auto" }}
                 disabled={runningReset}
               >
                 {runningReset ? "Sıfırlanıyor..." : "Tüm Satışları ve Bildirimleri Sıfırla"}
@@ -514,7 +522,7 @@ export default function AdminPage() {
 
               <button
                 onClick={clearAllLocks}
-                style={warnBtn}
+                style={{ ...warnBtn, width: isMobile ? "100%" : "auto" }}
                 disabled={runningLockClear}
               >
                 {runningLockClear ? "Temizleniyor..." : "Tüm Lock'ları Temizle"}
@@ -537,7 +545,7 @@ export default function AdminPage() {
                     }))
                   )
                 }
-                style={secondaryBtn}
+                style={{ ...secondaryBtn, width: isMobile ? "100%" : "auto" }}
               >
                 Satışları CSV İndir
               </button>
@@ -557,7 +565,7 @@ export default function AdminPage() {
                     }))
                   )
                 }
-                style={secondaryBtn}
+                style={{ ...secondaryBtn, width: isMobile ? "100%" : "auto" }}
               >
                 Kullanıcıları CSV İndir
               </button>
@@ -577,7 +585,7 @@ export default function AdminPage() {
                     }))
                   )
                 }
-                style={secondaryBtn}
+                style={{ ...secondaryBtn, width: isMobile ? "100%" : "auto" }}
               >
                 Logları CSV İndir
               </button>
@@ -592,7 +600,14 @@ export default function AdminPage() {
             ) : (
               <div style={{ display: "grid", gap: 12 }}>
                 {users.map((user) => (
-                  <div key={user.id} style={rowCardStyle}>
+                  <div
+                    key={user.id}
+                    style={{
+                      ...rowCardStyle,
+                      flexDirection: isMobile ? "column" : "row",
+                      alignItems: isMobile ? "stretch" : "center",
+                    }}
+                  >
                     <div>
                       <div style={{ fontWeight: 700 }}>{user.name}</div>
                       <div>Kullanıcı adı: {user.username}</div>
@@ -603,18 +618,18 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button onClick={() => toggleApproval(user)} style={warnBtn}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexDirection: isMobile ? "column" : "row" }}>
+                      <button onClick={() => toggleApproval(user)} style={{ ...warnBtn, width: isMobile ? "100%" : "auto" }}>
                         {user.is_approved ? "Erişimi Kapat" : "Erişimi Aç"}
                       </button>
 
-                      <button onClick={() => toggleRole(user)} style={roleBtn}>
+                      <button onClick={() => toggleRole(user)} style={{ ...roleBtn, width: isMobile ? "100%" : "auto" }}>
                         {user.role === "admin" ? "User Yap" : "Admin Yap"}
                       </button>
 
                       <button
                         onClick={() => deleteUser(user.id, user.username)}
-                        style={dangerBtnSmall}
+                        style={{ ...dangerBtnSmall, width: isMobile ? "100%" : "auto" }}
                       >
                         Kullanıcıyı Sil
                       </button>
@@ -631,7 +646,7 @@ export default function AdminPage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "2fr 1fr auto",
+                gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr auto",
                 gap: 10,
                 marginBottom: 16,
               }}
@@ -658,7 +673,14 @@ export default function AdminPage() {
             ) : (
               <div style={{ display: "grid", gap: 12 }}>
                 {events.map((event) => (
-                  <div key={event.id} style={rowCardStyle}>
+                  <div
+                    key={event.id}
+                    style={{
+                      ...rowCardStyle,
+                      flexDirection: isMobile ? "column" : "row",
+                      alignItems: isMobile ? "stretch" : "center",
+                    }}
+                  >
                     <div style={{ flex: 1, display: "grid", gap: 8 }}>
                       <input
                         value={event.title}
@@ -676,14 +698,14 @@ export default function AdminPage() {
                       />
                     </div>
 
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button onClick={() => updateEvent(event)} style={primaryBtn}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexDirection: isMobile ? "column" : "row" }}>
+                      <button onClick={() => updateEvent(event)} style={{ ...primaryBtn, width: isMobile ? "100%" : "auto" }}>
                         Kaydet
                       </button>
 
                       <button
                         onClick={() => deleteEvent(event.id)}
-                        style={dangerBtnSmall}
+                        style={{ ...dangerBtnSmall, width: isMobile ? "100%" : "auto" }}
                       >
                         Sil
                       </button>
@@ -765,7 +787,14 @@ export default function AdminPage() {
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
                 {filteredSales.map((sale) => (
-                  <div key={sale.id} style={rowCardStyle}>
+                  <div
+                    key={sale.id}
+                    style={{
+                      ...rowCardStyle,
+                      flexDirection: "column",
+                      alignItems: "stretch",
+                    }}
+                  >
                     <div>
                       <div style={{ fontWeight: 700 }}>
                         {sale.customer_name || "-"}
@@ -798,7 +827,14 @@ export default function AdminPage() {
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
                 {logs.map((log) => (
-                  <div key={log.id} style={rowCardStyle}>
+                  <div
+                    key={log.id}
+                    style={{
+                      ...rowCardStyle,
+                      flexDirection: "column",
+                      alignItems: "stretch",
+                    }}
+                  >
                     <div>
                       <div style={{ fontWeight: 700 }}>
                         {log.action.toUpperCase()}
@@ -815,9 +851,7 @@ export default function AdminPage() {
                 ))}
 
                 {logs.length === 0 && (
-                  <div style={emptyBoxStyle}>
-                    Log bulunamadı.
-                  </div>
+                  <div style={emptyBoxStyle}>Log bulunamadı.</div>
                 )}
               </div>
             )}

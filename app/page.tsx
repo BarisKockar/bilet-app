@@ -19,6 +19,14 @@ export default function Home() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkScreen = () => setIsMobile(window.innerWidth < 768);
+    checkScreen();
+    window.addEventListener("resize", checkScreen);
+    return () => window.removeEventListener("resize", checkScreen);
+  }, []);
 
   useEffect(() => {
     const loggedIn = localStorage.getItem("is_logged_in");
@@ -30,13 +38,8 @@ export default function Home() {
       return;
     }
 
-    if (savedUserName) {
-      setUserName(savedUserName);
-    }
-
-    if (savedRole) {
-      setUserRole(savedRole);
-    }
+    if (savedUserName) setUserName(savedUserName);
+    if (savedRole) setUserRole(savedRole);
 
     setIsCheckingAuth(false);
   }, [router]);
@@ -45,6 +48,27 @@ export default function Home() {
     if (isCheckingAuth) return;
     getEvents();
   }, [isCheckingAuth]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("events-home")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "events",
+        },
+        () => {
+          getEvents();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   async function getEvents() {
     const { data, error } = await supabase
@@ -68,9 +92,7 @@ export default function Home() {
     router.push("/login");
   }
 
-  if (isCheckingAuth) {
-    return null;
-  }
+  if (isCheckingAuth) return null;
 
   return (
     <main
@@ -78,7 +100,7 @@ export default function Home() {
         minHeight: "100vh",
         background: "#0f172a",
         color: "white",
-        padding: "40px 20px",
+        padding: isMobile ? "20px 12px" : "40px 20px",
         fontFamily: "Arial, sans-serif",
       }}
     >
@@ -86,8 +108,9 @@ export default function Home() {
         <div
           style={{
             display: "flex",
+            flexDirection: isMobile ? "column" : "row",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: isMobile ? "stretch" : "center",
             gap: 16,
             flexWrap: "wrap",
             marginBottom: 32,
@@ -96,7 +119,7 @@ export default function Home() {
           <div>
             <h1
               style={{
-                fontSize: 36,
+                fontSize: isMobile ? 28 : 36,
                 fontWeight: 700,
                 marginBottom: 10,
                 marginTop: 0,
@@ -110,14 +133,28 @@ export default function Home() {
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              flexDirection: isMobile ? "column" : "row",
+              width: isMobile ? "100%" : "auto",
+            }}
+          >
             {userRole === "admin" && (
-              <button onClick={() => router.push("/admin")} style={adminButton}>
+              <button
+                onClick={() => router.push("/admin")}
+                style={{ ...adminButton, width: isMobile ? "100%" : "auto" }}
+              >
                 Admin Paneli
               </button>
             )}
 
-            <button onClick={logout} style={logoutButton}>
+            <button
+              onClick={logout}
+              style={{ ...logoutButton, width: isMobile ? "100%" : "auto" }}
+            >
               Çıkış Yap
             </button>
           </div>
@@ -126,7 +163,9 @@ export default function Home() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(auto-fit, minmax(240px, 1fr))",
             gap: 18,
           }}
         >
@@ -161,7 +200,7 @@ export default function Home() {
 
               <h2
                 style={{
-                  fontSize: 24,
+                  fontSize: isMobile ? 20 : 24,
                   marginBottom: 8,
                   marginTop: 0,
                   fontWeight: 700,
