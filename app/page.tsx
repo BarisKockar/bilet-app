@@ -16,8 +16,8 @@ type CustomerMailItem = {
   id: number;
   email: string;
   created_at: string;
+  ticket_codes: string[];
 };
-
 export default function Home() {
   const router = useRouter();
 
@@ -100,7 +100,7 @@ export default function Home() {
 
     const { data: salesData, error: salesError } = await supabase
       .from("sales")
-      .select("customer_email")
+      .select("customer_email, seat_id")
       .order("created_at", { ascending: false });
 
     if (salesError) {
@@ -109,9 +109,11 @@ export default function Home() {
       return;
     }
 
+    const salesRows = (salesData as { customer_email?: string; seat_id?: number }[]) || [];
+
     const gmailEmails = Array.from(
       new Set(
-        ((salesData as { customer_email?: string }[]) || [])
+        salesRows
           .map((item) => (item.customer_email || "").trim().toLowerCase())
           .filter((email) => email.endsWith("@gmail.com"))
       )
@@ -129,6 +131,52 @@ export default function Home() {
       }
     }
 
+    const seatIds = Array.from(
+      new Set(
+        salesRows
+          .map((row) => row.seat_id)
+          .filter((id): id is number => typeof id === "number")
+      )
+    );
+
+    let seatCodeMap = new Map<number, string>();
+
+    if (seatIds.length > 0) {
+      const { data: seatsData, error: seatsError } = await supabase
+        .from("seats")
+        .select("id, seat_code")
+        .in("id", seatIds);
+
+      if (seatsError) {
+        console.error("syncCustomerMails seats error:", seatsError);
+      } else {
+        ((seatsData as { id: number; seat_code: string }[]) || []).forEach((seat) => {
+          seatCodeMap.set(seat.id, seat.seat_code);
+        });
+      }
+    }
+
+    const emailToTickets = new Map<string, string[]>();
+
+    for (const row of salesRows) {
+      const email = (row.customer_email || "").trim().toLowerCase();
+      if (!email.endsWith("@gmail.com")) continue;
+
+      const seatCode =
+        typeof row.seat_id === "number" ? seatCodeMap.get(row.seat_id) : undefined;
+
+      if (!emailToTickets.has(email)) {
+        emailToTickets.set(email, []);
+      }
+
+      if (seatCode) {
+        const arr = emailToTickets.get(email)!;
+        if (!arr.includes(seatCode)) {
+          arr.push(seatCode);
+        }
+      }
+    }
+
     const { data: trackingData, error: trackingError } = await supabase
       .from("customer_mail_tracking")
       .select("*")
@@ -140,10 +188,18 @@ export default function Home() {
       return;
     }
 
-    setCustomerMails((trackingData as CustomerMailItem[]) || []);
+    const finalRows: CustomerMailItem[] = ((trackingData as { id: number; email: string; created_at: string }[]) || []).map(
+      (item) => ({
+        id: item.id,
+        email: item.email,
+        created_at: item.created_at,
+        ticket_codes: emailToTickets.get(item.email) || [],
+      })
+    );
+
+    setCustomerMails(finalRows);
     setLoadingMails(false);
   }
-
   async function removeTrackedMail(item: CustomerMailItem) {
     const ok = window.confirm("Mail atıldı mı gençler?");
     if (!ok) return;
@@ -292,7 +348,9 @@ export default function Home() {
                         onClick={() => void removeTrackedMail(item)}
                         style={{
                           display: "flex",
-                          alignItems: "center",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          gap: 6,
                           background: "#0f172a",
                           borderRadius: 10,
                           padding: "10px 12px",
@@ -305,7 +363,11 @@ export default function Home() {
                           wordBreak: "break-word",
                         }}
                       >
-                        {item.email}
+                        <span style={{ fontWeight: 700 }}>{item.email}</span>
+
+                        <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                          Biletler: {item.ticket_codes.length > 0 ? item.ticket_codes.join(", ") : "Yok"}
+                        </span>
                       </button>
                     ))}
                   </div>
