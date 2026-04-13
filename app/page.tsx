@@ -148,14 +148,18 @@ export default function Home() {
     setLoadingMails(false);
   }
 
-  async function toggleMailChecked(item: CustomerMailItem) {
+  async function removeTrackedMail(item: CustomerMailItem) {
+    const ok = window.confirm("Mail atıldı mı gençler?");
+    if (!ok) return;
+
     const { error } = await supabase
       .from("customer_mail_tracking")
-      .update({ is_checked: !item.is_checked })
+      .delete()
       .eq("id", item.id);
 
     if (error) {
-      console.error("toggleMailChecked error:", error);
+      console.error("removeTrackedMail error:", error);
+      alert("Mail listeden silinemedi.");
       return;
     }
 
@@ -286,8 +290,9 @@ export default function Home() {
                     }}
                   >
                     {customerMails.map((item) => (
-                      <label
+                      <button
                         key={item.id}
+                        onClick={() => removeTrackedMail(item)}
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -297,15 +302,15 @@ export default function Home() {
                           padding: "10px 12px",
                           fontSize: 14,
                           color: "white",
+                          border: "none",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          width: "100%",
+                          wordBreak: "break-word",
                         }}
                       >
-                        <input
-                          type="checkbox"
-                          checked={item.is_checked}
-                          onChange={() => toggleMailChecked(item)}
-                        />
-                        <span style={{ wordBreak: "break-word" }}>{item.email}</span>
-                      </label>
+                        <span>{item.email}</span>
+                      </button>
                     ))}
                   </div>
                 )}
