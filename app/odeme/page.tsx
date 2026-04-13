@@ -72,21 +72,11 @@ export default function OdemePage({
             marginBottom: 16,
           }}
         >
-          <div>
-            <strong>Banka:</strong> {bank || "-"}
-          </div>
-          <div>
-            <strong>Alıcı:</strong> {receiver || "-"}
-          </div>
-          <div>
-            <strong>IBAN:</strong> {iban || "-"}
-          </div>
-          <div>
-            <strong>Açıklama:</strong> {desc || "-"}
-          </div>
-          <div>
-            <strong>Tutar:</strong> {amount ? `${amount} ₺` : "-"}
-          </div>
+          <div><strong>Banka:</strong> {bank || "-"}</div>
+          <div><strong>Alıcı:</strong> {receiver || "-"}</div>
+          <div><strong>IBAN:</strong> {iban || "-"}</div>
+          <div><strong>Açıklama:</strong> {desc || "-"}</div>
+          <div><strong>Tutar:</strong> {amount ? `${amount} ₺` : "-"}</div>
         </div>
 
         <div style={{ display: "grid", gap: 10 }}>
@@ -95,16 +85,6 @@ export default function OdemePage({
           <CopyButton value={desc} label="Açıklamayı Kopyala" />
           <CopyButton value={amount} label="Tutarı Kopyala" />
         </div>
-
-        <p
-          style={{
-            marginTop: 16,
-            fontSize: 13,
-            color: "#94a3b8",
-          }}
-        >
-          Kopyaladığın bilgileri mobil bankacılık uygulamana yapıştırarak ödemeyi tamamlayabilirsin.
-        </p>
       </div>
     </main>
   );
