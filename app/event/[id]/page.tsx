@@ -11,7 +11,7 @@ type SeatItem = {
   seat_code: string;
   row_no: string;
   seat_no: number;
-  status: string;
+  status: "available" | "locking" | "sold";
   locked_by?: string | null;
   locked_at?: string | null;
 };
@@ -37,17 +37,26 @@ type SaleRow = {
   customer_name?: string;
   customer_email?: string;
 };
+
+type EventRow = {
+  id: number;
+  title?: string;
+  event_date?: string;
+};
+
 const columns = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 const maxRows = 20;
 
 export default function Page() {
   const params = useParams();
   const eventId = Number(params.id);
-  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
-  const [selectedSeats, setSelectedSeats] = useState<SeatItem[]>([]);
+
   const [seats, setSeats] = useState<SeatItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
   const [selectedSeat, setSelectedSeat] = useState<SeatItem | null>(null);
+  const [selectedSeats, setSelectedSeats] = useState<SeatItem[]>([]);
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
 
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -55,14 +64,12 @@ export default function Page() {
   const [amount, setAmount] = useState("");
   const [userName, setUserName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [refundSeatItem, setRefundSeatItem] = useState<SeatItem | null>(null);
-  const [refundSale, setRefundSale] = useState<SaleRow & {
-    id: number;
-    customer_name?: string;
-    customer_email?: string;
-  } | null>(null);
+  const [refundSale, setRefundSale] = useState<SaleRow | null>(null);
   const [refundConfirmText, setRefundConfirmText] = useState("");
   const [refundLoading, setRefundLoading] = useState(false);
+
   const [ibanInfo, setIbanInfo] = useState<SettingsItem>({
     bank_name: "",
     iban_name: "",
@@ -133,6 +140,17 @@ export default function Page() {
     };
   }, [eventId]);
 
+  useEffect(() => {
+    if (!eventId) return;
+
+    const interval = setInterval(() => {
+      getSeats();
+      getNotifications();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [eventId]);
+
   async function getSeats() {
     const { data, error } = await supabase
       .from("seats")
@@ -180,43 +198,104 @@ export default function Page() {
     }
   }
 
+  async function changeUserName() {
+    await resetForm(true);
+
+    const name = window.prompt("Yeni kullanıcı adı gir", userName || "");
+    if (!name || !name.trim()) return;
+
+    localStorage.setItem("ticket_user_name", name.trim());
+    setUserName(name.trim());
+
+    await getSeats();
+  }
+
   async function handleSeatClick(seat: SeatItem) {
-  if (!userName) {
-    alert("Önce kullanıcı adı tanımlanmalı.");
-    return;
-  }
+    if (!userName) {
+      alert("Önce kullanıcı adı tanımlanmalı.");
+      return;
+    }
 
-  if (seat.status === "sold") return;
+    if (seat.status === "sold") return;
 
-  const isLockedByAnotherUser =
-    seat.status === "locking" &&
-    seat.locked_by &&
-    seat.locked_by !== userName;
+    const isLockedByAnotherUser =
+      seat.status === "locking" &&
+      seat.locked_by &&
+      seat.locked_by !== userName;
 
-  if (isLockedByAnotherUser) {
-    alert("Bu koltuk başka bir kullanıcı tarafından işlemde.");
-    return;
-  }
+    if (isLockedByAnotherUser) {
+      alert("Bu koltuk başka bir kullanıcı tarafından işlemde.");
+      return;
+    }
 
-  // Çoklu seçim modu
-  if (isMultiSelectMode) {
-    const alreadySelected = selectedSeats.some((s) => s.id === seat.id);
+    if (isMultiSelectMode) {
+      const alreadySelected = selectedSeats.some((s) => s.id === seat.id);
 
-    // Aynı koltuğa tekrar basılırsa seçimden çıkar
-    if (alreadySelected) {
-      const { error: unlockError } = await supabase.rpc("unlock_seat", {
-        p_event_id: eventId,
-        p_seat_id: seat.id,
-      });
+      if (alreadySelected) {
+        const { error: unlockError } = await supabase.rpc("unlock_seat", {
+          p_event_id: eventId,
+          p_seat_id: seat.id,
+        });
 
-      if (unlockError) {
-        console.error("unlock_seat error:", unlockError);
+        if (unlockError) {
+          console.error("unlock_seat error:", unlockError);
+          return;
+        }
+
+        setSelectedSeats((prev) => prev.filter((s) => s.id !== seat.id));
+        await getSeats();
         return;
       }
 
-      setSelectedSeats((prev) => prev.filter((s) => s.id !== seat.id));
+      const { data, error } = await supabase.rpc("lock_seat", {
+        p_event_id: eventId,
+        p_seat_id: seat.id,
+        p_user_name: userName,
+      });
+
+      if (error) {
+        console.error("lock_seat error:", error);
+        alert("Koltuk kilitlenemedi.");
+        return;
+      }
+
+      if (!data?.success) {
+        alert(data?.message || "Koltuk şu anda işlemde.");
+        await getSeats();
+        return;
+      }
+
+      setSelectedSeats((prev) => [
+        ...prev,
+        {
+          ...seat,
+          status: "locking",
+          locked_by: userName,
+        },
+      ]);
+
       await getSeats();
       return;
+    }
+
+    const isSameSelectedSeat = selectedSeat?.id === seat.id;
+    if (isSameSelectedSeat) return;
+
+    if (
+      selectedSeat &&
+      selectedSeat.id !== seat.id &&
+      selectedSeat.status === "locking"
+    ) {
+      const { error: unlockError } = await supabase.rpc("unlock_seat", {
+        p_event_id: eventId,
+        p_seat_id: selectedSeat.id,
+      });
+
+      if (unlockError) {
+        console.error("previous unlock_seat error:", unlockError);
+        alert("Önceki koltuk bırakılamadı.");
+        return;
+      }
     }
 
     const { data, error } = await supabase.rpc("lock_seat", {
@@ -228,6 +307,7 @@ export default function Page() {
     if (error) {
       console.error("lock_seat error:", error);
       alert("Koltuk kilitlenemedi.");
+      await getSeats();
       return;
     }
 
@@ -237,67 +317,15 @@ export default function Page() {
       return;
     }
 
-    setSelectedSeats((prev) => [
-      ...prev,
-      {
-        ...seat,
-        status: "locking",
-        locked_by: userName,
-      },
-    ]);
-
-    await getSeats();
-    return;
-  }
-
-  // Tekli seçim modu
-  const isSameSelectedSeat = selectedSeat?.id === seat.id;
-  if (isSameSelectedSeat) return;
-
-  if (
-    selectedSeat &&
-    selectedSeat.id !== seat.id &&
-    selectedSeat.status === "locking"
-  ) {
-    const { error: unlockError } = await supabase.rpc("unlock_seat", {
-      p_event_id: eventId,
-      p_seat_id: selectedSeat.id,
+    setSelectedSeat({
+      ...seat,
+      status: "locking",
+      locked_by: userName,
     });
 
-    if (unlockError) {
-      console.error("previous unlock_seat error:", unlockError);
-      alert("Önceki koltuk bırakılamadı.");
-      return;
-    }
-  }
-
-  const { data, error } = await supabase.rpc("lock_seat", {
-    p_event_id: eventId,
-    p_seat_id: seat.id,
-    p_user_name: userName,
-  });
-
-  if (error) {
-    console.error("lock_seat error:", error);
-    alert("Koltuk kilitlenemedi.");
     await getSeats();
-    return;
   }
 
-  if (!data?.success) {
-    alert(data?.message || "Koltuk şu anda işlemde.");
-    await getSeats();
-    return;
-  }
-
-  setSelectedSeat({
-    ...seat,
-    status: "locking",
-    locked_by: userName,
-  });
-
-  await getSeats();
-}
   async function completeSale() {
     if (!selectedSeat) return;
 
@@ -350,8 +378,8 @@ export default function Page() {
           customerName: customerName.trim(),
           customerEmail: customerEmail.trim(),
           seatCode: selectedSeat.seat_code,
-          eventTitle: eventData?.title || `Etkinlik ${eventId}`,
-          eventDate: eventData?.event_date || "",
+          eventTitle: (eventData as EventRow | null)?.title || `Etkinlik ${eventId}`,
+          eventDate: (eventData as EventRow | null)?.event_date || "",
           paymentType,
           amount: Number(amount),
         }),
@@ -383,106 +411,107 @@ export default function Page() {
     await getSeats();
     await getNotifications();
   }
-async function completeMultiSale() {
-  if (selectedSeats.length === 0) return;
 
-  if (!customerName.trim() || !customerEmail.trim() || !amount) {
-    alert("Lütfen tüm alanları doldur.");
-    return;
-  }
+  async function completeMultiSale() {
+    if (selectedSeats.length === 0) return;
 
-  setIsSubmitting(true);
-
-  try {
-    for (const seat of selectedSeats) {
-      const { data, error } = await supabase.rpc("complete_sale", {
-        p_event_id: eventId,
-        p_seat_id: seat.id,
-        p_customer_name: customerName.trim(),
-        p_customer_email: customerEmail.trim(),
-        p_payment_type: paymentType,
-        p_amount: Number(amount),
-      });
-
-      if (error || !data?.success) {
-        console.error("complete_multi_sale error:", error || data);
-        alert(`${seat.seat_code} için satış tamamlanamadı.`);
-        setIsSubmitting(false);
-        return;
-      }
+    if (!customerName.trim() || !customerEmail.trim() || !amount) {
+      alert("Lütfen tüm alanları doldur.");
+      return;
     }
 
-    const { data: eventData } = await supabase
-      .from("events")
-      .select("*")
-      .eq("id", eventId)
-      .single();
+    setIsSubmitting(true);
 
     try {
-      await fetch("/api/send-ticket", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          customerName: customerName.trim(),
-          customerEmail: customerEmail.trim(),
-          seatCode: selectedSeats.map((s) => s.seat_code).join(", "),
-          eventTitle: eventData?.title || `Etkinlik ${eventId}`,
-          eventDate: eventData?.event_date || "",
-          paymentType,
-          amount: Number(amount) * selectedSeats.length,
-        }),
-      });
-    } catch (mailError) {
-      console.error("multi mail request error:", mailError);
-    }
+      for (const seat of selectedSeats) {
+        const { data, error } = await supabase.rpc("complete_sale", {
+          p_event_id: eventId,
+          p_seat_id: seat.id,
+          p_customer_name: customerName.trim(),
+          p_customer_email: customerEmail.trim(),
+          p_payment_type: paymentType,
+          p_amount: Number(amount),
+        });
 
-    setIsSubmitting(false);
-    await resetForm(false);
-    setSelectedSeats([]);
-    setIsMultiSelectMode(false);
-    await getSeats();
-    await getNotifications();
-  } catch (err) {
-    console.error("completeMultiSale error:", err);
-    setIsSubmitting(false);
-    alert("Çoklu satış sırasında hata oluştu.");
+        if (error || !data?.success) {
+          console.error("complete_multi_sale error:", error || data);
+          alert(`${seat.seat_code} için satış tamamlanamadı.`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      const { data: eventData } = await supabase
+        .from("events")
+        .select("*")
+        .eq("id", eventId)
+        .single();
+
+      try {
+        await fetch("/api/send-ticket", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            customerName: customerName.trim(),
+            customerEmail: customerEmail.trim(),
+            seatCode: selectedSeats.map((s) => s.seat_code).join(", "),
+            eventTitle: (eventData as EventRow | null)?.title || `Etkinlik ${eventId}`,
+            eventDate: (eventData as EventRow | null)?.event_date || "",
+            paymentType,
+            amount: Number(amount) * selectedSeats.length,
+          }),
+        });
+      } catch (mailError) {
+        console.error("multi mail request error:", mailError);
+      }
+
+      setIsSubmitting(false);
+      await resetForm(false);
+      await getSeats();
+      await getNotifications();
+    } catch (err) {
+      console.error("completeMultiSale error:", err);
+      setIsSubmitting(false);
+      alert("Çoklu satış sırasında hata oluştu.");
+    }
   }
-}
+
   async function resetForm(shouldUnlock = true) {
-  if (shouldUnlock && selectedSeat && selectedSeat.status === "locking") {
-    const { error } = await supabase.rpc("unlock_seat", {
-      p_event_id: eventId,
-      p_seat_id: selectedSeat.id,
-    });
-
-    if (error) {
-      console.error("unlock_seat error:", error);
-    }
-  }
-
-  if (shouldUnlock && selectedSeats.length > 0) {
-    for (const seat of selectedSeats) {
+    if (shouldUnlock && selectedSeat && selectedSeat.status === "locking") {
       const { error } = await supabase.rpc("unlock_seat", {
         p_event_id: eventId,
-        p_seat_id: seat.id,
+        p_seat_id: selectedSeat.id,
       });
 
       if (error) {
-        console.error("multi unlock_seat error:", error);
+        console.error("unlock_seat error:", error);
       }
     }
+
+    if (shouldUnlock && selectedSeats.length > 0) {
+      for (const seat of selectedSeats) {
+        const { error } = await supabase.rpc("unlock_seat", {
+          p_event_id: eventId,
+          p_seat_id: seat.id,
+        });
+
+        if (error) {
+          console.error("multi unlock_seat error:", error);
+        }
+      }
+    }
+
+    setSelectedSeat(null);
+    setSelectedSeats([]);
+    setCustomerName("");
+    setCustomerEmail("");
+    setPaymentType("cash");
+    setAmount("");
+    setIsMultiSelectMode(false);
   }
 
-  setSelectedSeat(null);
-  setSelectedSeats([]);
-  setCustomerName("");
-  setCustomerEmail("");
-  setPaymentType("cash");
-  setAmount("");
-  setIsMultiSelectMode(false);
-}
   async function refundSeat(seat: SeatItem) {
     const { data: sale, error: saleError } = await supabase
       .from("sales")
@@ -502,6 +531,7 @@ async function completeMultiSale() {
     setRefundSale(sale as SaleRow);
     setRefundConfirmText("");
   }
+
   async function confirmRefund() {
     if (!refundSeatItem || !refundSale) return;
 
@@ -557,6 +587,13 @@ async function completeMultiSale() {
     await getSeats();
     await getNotifications();
   }
+
+  function closeRefundModal() {
+    setRefundSeatItem(null);
+    setRefundSale(null);
+    setRefundConfirmText("");
+  }
+
   const seatMap = useMemo(() => {
     const map = new Map<string, SeatItem>();
 
@@ -566,14 +603,11 @@ async function completeMultiSale() {
 
     return map;
   }, [seats]);
+
   const soldCount = seats.filter((s) => s.status === "sold").length;
   const lockingCount = seats.filter((s) => s.status === "locking").length;
   const emptyCount = seats.filter((s) => s.status === "available").length;
-  function closeRefundModal() {
-    setRefundSeatItem(null);
-    setRefundSale(null);
-    setRefundConfirmText("");
-  }
+
   return (
     <main
       style={{
@@ -677,22 +711,26 @@ async function completeMultiSale() {
           </div>
         </div>
       )}
-      <div style={{ maxWidth: 1500, margin: "0 auto" }}></div>
-      <div
-        style={{
-          marginBottom: 20,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <Link href="/" style={{ color: "#93c5fd", textDecoration: "none" }}>
-          ← Günlere dön
-        </Link>
 
+      <div style={{ maxWidth: 1500, margin: "0 auto" }}>
+        <div
+          style={{
+            marginBottom: 20,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <Link href="/" style={{ color: "#93c5fd", textDecoration: "none" }}>
+            ← Günlere dön
+          </Link>
 
+          <button onClick={changeUserName} style={userButtonStyle}>
+            Kullanıcı: {userName || "Tanımsız"}
+          </button>
+        </div>
 
         <div
           style={{
@@ -824,118 +862,126 @@ async function completeMultiSale() {
               }}
             >
               <h3 style={{ marginTop: 0 }}>Satış Paneli</h3>
+
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-  <button
-    onClick={() => {
-      setIsMultiSelectMode(false);
-      setSelectedSeats([]);
-    }}
-    style={!isMultiSelectMode ? activeBtn : passiveBtn}
-  >
-    Tekli Satış
-  </button>
+                <button
+                  onClick={() => {
+                    setIsMultiSelectMode(false);
+                    setSelectedSeats([]);
+                  }}
+                  style={!isMultiSelectMode ? activeBtn : passiveBtn}
+                >
+                  Tekli Satış
+                </button>
 
-  <button
-    onClick={() => {
-      setSelectedSeat(null);
-      setIsMultiSelectMode(true);
-    }}
-    style={isMultiSelectMode ? activeBtn : passiveBtn}
-  >
-    Çoklu Satış
-  </button>
-</div>
+                <button
+                  onClick={() => {
+                    setSelectedSeat(null);
+                    setIsMultiSelectMode(true);
+                  }}
+                  style={isMultiSelectMode ? activeBtn : passiveBtn}
+                >
+                  Çoklu Satış
+                </button>
+              </div>
+
               {selectedSeat || selectedSeats.length > 0 ? (
-  <>
-    {!isMultiSelectMode ? (
-      <p>
-        Seçilen koltuk: <strong>{selectedSeat?.seat_code}</strong>
-      </p>
-    ) : (
-      <p>
-        Seçilen koltuklar:{" "}
-        <strong>{selectedSeats.map((s) => s.seat_code).join(", ")}</strong>
-      </p>
-    )}
+                <>
+                  {!isMultiSelectMode ? (
+                    <p>
+                      Seçilen koltuk: <strong>{selectedSeat?.seat_code}</strong>
+                    </p>
+                  ) : (
+                    <p>
+                      Seçilen koltuklar:{" "}
+                      <strong>{selectedSeats.map((s) => s.seat_code).join(", ")}</strong>
+                    </p>
+                  )}
 
-    <input
-      value={customerName}
-      onChange={(e) => setCustomerName(e.target.value)}
-      placeholder="Müşteri adı"
-      style={inputStyle}
-    />
+                  <input
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Müşteri adı"
+                    style={inputStyle}
+                  />
 
-    <input
-      value={customerEmail}
-      onChange={(e) => setCustomerEmail(e.target.value)}
-      placeholder="Müşteri e-postası"
-      style={inputStyle}
-    />
+                  <input
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="Müşteri e-postası"
+                    style={inputStyle}
+                  />
 
-    <input
-      value={amount}
-      onChange={(e) => setAmount(e.target.value)}
-      placeholder={isMultiSelectMode ? "Koltuk başı tutar" : "Tutar"}
-      type="number"
-      style={inputStyle}
-    />
+                  <input
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder={isMultiSelectMode ? "Koltuk başı tutar" : "Tutar"}
+                    type="number"
+                    style={inputStyle}
+                  />
 
-    <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-      <button
-        onClick={() => setPaymentType("cash")}
-        style={paymentType === "cash" ? activeBtn : passiveBtn}
-      >
-        Nakit
-      </button>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                    <button
+                      onClick={() => setPaymentType("cash")}
+                      style={paymentType === "cash" ? activeBtn : passiveBtn}
+                    >
+                      Nakit
+                    </button>
 
-      <button
-        onClick={() => setPaymentType("iban")}
-        style={paymentType === "iban" ? activeBtn : passiveBtn}
-      >
-        IBAN
-      </button>
-    </div>
+                    <button
+                      onClick={() => setPaymentType("iban")}
+                      style={paymentType === "iban" ? activeBtn : passiveBtn}
+                    >
+                      IBAN
+                    </button>
+                  </div>
 
-    {paymentType === "iban" && (
-      <div
-        style={{
-          background: "#0f172a",
-          padding: 12,
-          borderRadius: 12,
-          marginBottom: 12,
-          fontSize: 14,
-          lineHeight: 1.5,
-        }}
-      >
-        <div><strong>Banka:</strong> {ibanInfo.bank_name}</div>
-        <div><strong>Alıcı:</strong> {ibanInfo.iban_name}</div>
-        <div><strong>IBAN:</strong> {ibanInfo.iban_number}</div>
-      </div>
-    )}
+                  {paymentType === "iban" && (
+                    <div
+                      style={{
+                        background: "#0f172a",
+                        padding: 12,
+                        borderRadius: 12,
+                        marginBottom: 12,
+                        fontSize: 14,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      <div>
+                        <strong>Banka:</strong> {ibanInfo.bank_name}
+                      </div>
+                      <div>
+                        <strong>Alıcı:</strong> {ibanInfo.iban_name}
+                      </div>
+                      <div>
+                        <strong>IBAN:</strong> {ibanInfo.iban_number}
+                      </div>
+                    </div>
+                  )}
 
-    <button
-      onClick={isMultiSelectMode ? completeMultiSale : completeSale}
-      style={mainButton}
-      disabled={isSubmitting}
-    >
-      {isSubmitting
-        ? "Kaydediliyor..."
-        : isMultiSelectMode
-        ? `Toplu Satışı Tamamla (${selectedSeats.length})`
-        : "Satışı Tamamla"}
-    </button>
+                  <button
+                    onClick={isMultiSelectMode ? completeMultiSale : completeSale}
+                    style={mainButton}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting
+                      ? "Kaydediliyor..."
+                      : isMultiSelectMode
+                      ? `Toplu Satışı Tamamla (${selectedSeats.length})`
+                      : "Satışı Tamamla"}
+                  </button>
 
-    <button onClick={() => resetForm(true)} style={secondaryButton}>
-      Vazgeç
-    </button>
-  </>
-) : (
-  <p style={{ color: "#cbd5e1" }}>
-    {isMultiSelectMode
-      ? "Çoklu satış için boş koltukları seç."
-      : "Satış başlatmak için boş bir koltuğa tıkla."}
-  </p>
-)}
+                  <button onClick={() => resetForm(true)} style={secondaryButton}>
+                    Vazgeç
+                  </button>
+                </>
+              ) : (
+                <p style={{ color: "#cbd5e1" }}>
+                  {isMultiSelectMode
+                    ? "Çoklu satış için boş koltukları seç."
+                    : "Satış başlatmak için boş bir koltuğa tıkla."}
+                </p>
+              )}
             </div>
 
             <RevenueCard eventId={eventId} />
@@ -1035,7 +1081,7 @@ function RowRenderer({
                 return;
               }
 
-              if (!isLocking) {
+              if (!isLocking || isMine) {
                 onSeatClick(seat);
               }
             }}
@@ -1047,17 +1093,17 @@ function RowRenderer({
               background: isSold ? "#ef4444" : isLocking ? "#f59e0b" : "#22c55e",
               color: "#001018",
               fontWeight: 700,
-              cursor: isSold ? "pointer" : isLocking ? "not-allowed" : "pointer",
+              cursor: isSold ? "pointer" : isLocking && !isMine ? "not-allowed" : "pointer",
               opacity: isLocking && !isMine ? 0.85 : 1,
             }}
             title={
               isSold
                 ? "İade etmek için tıkla"
                 : isLocking
-                  ? isMine
-                    ? "Bu koltuk sende işlemde"
-                    : "Bu koltuk başka bir kullanıcıda işlemde"
-                  : "Satış için tıkla"
+                ? isMine
+                  ? "Bu koltuk sende işlemde"
+                  : "Bu koltuk başka bir kullanıcıda işlemde"
+                : "Satış için tıkla"
             }
           >
             {seat.seat_code}
@@ -1081,7 +1127,19 @@ function RevenueCard({ eventId }: { eventId: number }) {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
+          schema: "public",
+          table: "sales",
+          filter: `event_id=eq.${eventId}`,
+        },
+        () => {
+          getRevenue();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
           schema: "public",
           table: "sales",
           filter: `event_id=eq.${eventId}`,
@@ -1092,15 +1150,20 @@ function RevenueCard({ eventId }: { eventId: number }) {
       )
       .subscribe();
 
+    const interval = setInterval(() => {
+      getRevenue();
+    }, 2000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [eventId]);
 
   async function getRevenue() {
     const { data, error } = await supabase
       .from("sales")
-      .select("amount,payment_type")
+      .select("id, amount, payment_type")
       .eq("event_id", eventId)
       .eq("is_refunded", false);
 
