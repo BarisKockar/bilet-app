@@ -15,7 +15,6 @@ type EventItem = {
 type CustomerMailItem = {
   id: number;
   email: string;
-  is_checked: boolean;
   created_at: string;
 };
 
@@ -57,8 +56,8 @@ export default function Home() {
 
   useEffect(() => {
     if (isCheckingAuth) return;
-    getEvents();
-    syncCustomerMails();
+    void getEvents();
+    void syncCustomerMails();
   }, [isCheckingAuth]);
 
   useEffect(() => {
@@ -72,13 +71,13 @@ export default function Home() {
           table: "events",
         },
         () => {
-          getEvents();
+          void getEvents();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, []);
 
@@ -119,10 +118,7 @@ export default function Home() {
     );
 
     if (gmailEmails.length > 0) {
-      const rowsToInsert = gmailEmails.map((email) => ({
-        email,
-        is_checked: false,
-      }));
+      const rowsToInsert = gmailEmails.map((email) => ({ email }));
 
       const { error: upsertError } = await supabase
         .from("customer_mail_tracking")
@@ -163,7 +159,7 @@ export default function Home() {
       return;
     }
 
-    await syncCustomerMails();
+    setCustomerMails((prev) => prev.filter((mail) => mail.id !== item.id));
   }
 
   function logout() {
@@ -227,9 +223,10 @@ export default function Home() {
           >
             <button
               onClick={() => {
-                setShowMailMenu((prev) => !prev);
-                if (!showMailMenu) {
-                  syncCustomerMails();
+                const next = !showMailMenu;
+                setShowMailMenu(next);
+                if (next) {
+                  void syncCustomerMails();
                 }
               }}
               style={{ ...mailMenuButton, width: isMobile ? "100%" : "auto" }}
@@ -292,11 +289,10 @@ export default function Home() {
                     {customerMails.map((item) => (
                       <button
                         key={item.id}
-                        onClick={() => removeTrackedMail(item)}
+                        onClick={() => void removeTrackedMail(item)}
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 10,
                           background: "#0f172a",
                           borderRadius: 10,
                           padding: "10px 12px",
@@ -309,7 +305,7 @@ export default function Home() {
                           wordBreak: "break-word",
                         }}
                       >
-                        <span>{item.email}</span>
+                        {item.email}
                       </button>
                     ))}
                   </div>
