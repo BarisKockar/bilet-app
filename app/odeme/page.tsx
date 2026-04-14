@@ -41,6 +41,21 @@ export default function OdemePage({
   const desc = searchParams.desc || "";
   const amount = searchParams.amount || "";
 
+  const paymentDetails = [
+    { label: "Banka", value: bank || "-" },
+    { label: "Alıcı", value: receiver || "-" },
+    { label: "IBAN", value: iban || "-" },
+    { label: "Açıklama", value: desc || "-" },
+    { label: "Tutar", value: amount ? `${amount} ₺` : "-" },
+  ];
+
+  const copyButtons = [
+    { value: iban, label: "IBAN’ı Kopyala" },
+    { value: receiver, label: "Alıcıyı Kopyala" },
+    { value: desc, label: "Açıklamayı Kopyala" },
+    { value: amount, label: "Tutarı Kopyala" },
+  ];
+
   return (
     <main
       style={{
@@ -72,18 +87,17 @@ export default function OdemePage({
             marginBottom: 16,
           }}
         >
-          <div><strong>Banka:</strong> {bank || "-"}</div>
-          <div><strong>Alıcı:</strong> {receiver || "-"}</div>
-          <div><strong>IBAN:</strong> {iban || "-"}</div>
-          <div><strong>Açıklama:</strong> {desc || "-"}</div>
-          <div><strong>Tutar:</strong> {amount ? `${amount} ₺` : "-"}</div>
+          {paymentDetails.map((item) => (
+            <div key={item.label}>
+              <strong>{item.label}:</strong> {item.value}
+            </div>
+          ))}
         </div>
 
         <div style={{ display: "grid", gap: 10 }}>
-          <CopyButton value={iban} label="IBAN’ı Kopyala" />
-          <CopyButton value={receiver} label="Alıcıyı Kopyala" />
-          <CopyButton value={desc} label="Açıklamayı Kopyala" />
-          <CopyButton value={amount} label="Tutarı Kopyala" />
+          {copyButtons.map((button) => (
+            <CopyButton key={button.label} value={button.value} label={button.label} />
+          ))}
         </div>
       </div>
     </main>

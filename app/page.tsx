@@ -277,9 +277,11 @@ export default function Home() {
 
   return (
     <main
+      className="theater-shell"
       style={{
         minHeight: "100vh",
-        background: "#0f172a",
+        background:
+          "radial-gradient(circle at top, rgba(214,166,79,0.16), transparent 28%), linear-gradient(180deg, #4f1028 0%, #120816 100%)",
         color: "white",
         padding: isMobile ? "20px 12px" : "40px 20px",
         fontFamily: "Arial, sans-serif",
@@ -287,6 +289,7 @@ export default function Home() {
     >
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div
+          className="theater-panel-strong theater-curtain"
           style={{
             display: "flex",
             flexDirection: isMobile ? "column" : "row",
@@ -295,10 +298,16 @@ export default function Home() {
             gap: 16,
             flexWrap: "wrap",
             marginBottom: 32,
+            borderRadius: 28,
+            padding: isMobile ? 18 : 24,
           }}
         >
           <div>
+            <div className="theater-chip" style={{ marginBottom: 14 }}>
+              Sahne Programi
+            </div>
             <h1
+              className="theater-title"
               style={{
                 fontSize: isMobile ? 28 : 36,
                 fontWeight: 700,
@@ -309,7 +318,7 @@ export default function Home() {
               Bilet Satış Paneli
             </h1>
 
-            <p style={{ color: "#cbd5e1", fontSize: 16, margin: 0 }}>
+            <p className="theater-subtitle" style={{ fontSize: 16, margin: 0 }}>
               Hoş geldin {userName || "Kullanıcı"}, oyun gününü seç.
             </p>
           </div>
@@ -355,6 +364,7 @@ export default function Home() {
 
             {showMailMenu && (
               <div
+                className="theater-panel"
                 style={{
                   ...mailMenuBox,
                   right: isMobile ? "auto" : 0,
@@ -398,12 +408,12 @@ export default function Home() {
                           flexDirection: "column",
                           alignItems: "flex-start",
                           gap: 6,
-                          background: "#0f172a",
-                          borderRadius: 10,
-                          padding: "10px 12px",
+                          background: "rgba(15,23,42,0.82)",
+                          borderRadius: 14,
+                          padding: "12px 14px",
                           fontSize: 14,
                           color: "white",
-                          border: "none",
+                          border: "1px solid rgba(255,255,255,0.08)",
                           cursor: "pointer",
                           textAlign: "left",
                           width: "100%",
@@ -441,23 +451,23 @@ export default function Home() {
             <Link
               key={event.id}
               href={`/event/${event.id}`}
+              className="theater-panel theater-curtain"
               style={{
                 textDecoration: "none",
                 color: "white",
-                background: "linear-gradient(135deg, #1e293b, #334155)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 18,
-                padding: 22,
-                boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+                borderRadius: 24,
+                padding: 24,
+                minHeight: 220,
               }}
             >
               <div
                 style={{
                   display: "inline-block",
-                  padding: "6px 10px",
+                  padding: "7px 12px",
                   borderRadius: 999,
-                  background: "#22c55e",
-                  color: "#052e16",
+                  background: "rgba(214,166,79,0.16)",
+                  color: "#f7efe5",
+                  border: "1px solid rgba(214,166,79,0.22)",
                   fontWeight: 700,
                   fontSize: 13,
                   marginBottom: 14,
@@ -481,7 +491,7 @@ export default function Home() {
                 Tarih: {event.event_date}
               </p>
 
-              <p style={{ color: "#94a3b8", fontSize: 14, margin: 0 }}>
+              <p style={{ color: "#f4d7a1", fontSize: 14, margin: 0 }}>
                 Satış ekranına git →
               </p>
             </Link>
@@ -493,33 +503,36 @@ export default function Home() {
 }
 
 const adminButton: React.CSSProperties = {
-  padding: "10px 14px",
-  borderRadius: 10,
-  border: "none",
-  background: "#2563eb",
+  padding: "12px 16px",
+  borderRadius: 14,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "linear-gradient(180deg, #375ad8, #1f3fa8)",
   color: "white",
   fontWeight: 700,
   cursor: "pointer",
+  boxShadow: "0 14px 28px rgba(31,63,168,0.28)",
 };
 
 const logoutButton: React.CSSProperties = {
-  padding: "10px 14px",
-  borderRadius: 10,
-  border: "none",
-  background: "#ef4444",
+  padding: "12px 16px",
+  borderRadius: 14,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "linear-gradient(180deg, #dc4b54, #9f1d2b)",
   color: "white",
   fontWeight: 700,
   cursor: "pointer",
+  boxShadow: "0 14px 28px rgba(159,29,43,0.24)",
 };
 
 const mailMenuButton: React.CSSProperties = {
-  padding: "10px 14px",
-  borderRadius: 10,
-  border: "none",
-  background: "#8b5cf6",
+  padding: "12px 16px",
+  borderRadius: 14,
+  border: "1px solid rgba(214,166,79,0.18)",
+  background: "linear-gradient(180deg, #6f2344, #4a132c)",
   color: "white",
   fontWeight: 700,
   cursor: "pointer",
+  boxShadow: "0 14px 28px rgba(74,19,44,0.28)",
 };
 
 const mailMenuBox: React.CSSProperties = {
@@ -528,10 +541,7 @@ const mailMenuBox: React.CSSProperties = {
   marginTop: 8,
   width: 340,
   maxWidth: "90vw",
-  background: "#111827",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 14,
+  borderRadius: 18,
   padding: 12,
-  boxShadow: "0 12px 30px rgba(0,0,0,0.35)",
   zIndex: 999,
 };

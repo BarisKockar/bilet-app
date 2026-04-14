@@ -655,9 +655,11 @@ export default function Page() {
 
   return (
     <main
+      className="theater-shell"
       style={{
         minHeight: "100vh",
-        background: "#0b1020",
+        background:
+          "radial-gradient(circle at top, rgba(214,166,79,0.16), transparent 28%), linear-gradient(180deg, #4f1028 0%, #120816 100%)",
         color: "white",
         padding: isMobile ? "16px 10px" : "24px 16px",
         fontFamily: "Arial, sans-serif",
@@ -765,6 +767,7 @@ export default function Page() {
 
       <div style={{ maxWidth: 1500, margin: "0 auto" }}>
         <div
+          className="theater-panel-strong theater-curtain"
           style={{
             marginBottom: 20,
             display: "flex",
@@ -773,9 +776,11 @@ export default function Page() {
             flexWrap: "wrap",
             flexDirection: isMobile ? "column" : "row",
             alignItems: isMobile ? "stretch" : "center",
+            borderRadius: 28,
+            padding: isMobile ? 16 : 20,
           }}
         >
-          <Link href="/" style={{ color: "#93c5fd", textDecoration: "none" }}>
+          <Link href="/" className="theater-link">
             ← Günlere dön
           </Link>
 
@@ -796,11 +801,10 @@ export default function Page() {
           }}
         >
           <div
+            className="theater-panel-strong"
             style={{
-              background: "#111827",
               padding: isMobile ? 12 : 20,
-              borderRadius: 20,
-              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 24,
               overflowX: "auto",
             }}
           >
@@ -923,11 +927,10 @@ export default function Page() {
 
           <div style={{ display: "grid", gap: 16 }}>
             <div
+              className="theater-panel"
               style={{
-                background: "#111827",
                 padding: isMobile ? 14 : 18,
-                borderRadius: 18,
-                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 22,
               }}
             >
               <h3 style={{ marginTop: 0 }}>Satış Paneli</h3>
@@ -1064,11 +1067,10 @@ export default function Page() {
             <RevenueCard eventId={eventId} />
 
             <div
+              className="theater-panel"
               style={{
-                background: "#111827",
                 padding: isMobile ? 14 : 18,
-                borderRadius: 18,
-                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 22,
               }}
             >
               <h3 style={{ marginTop: 0 }}>Bildirimler</h3>

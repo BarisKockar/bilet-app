@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@capacitor/cli": "^7.6.1",
+    "@capacitor/core": "^8.3.0",
     "@sendgrid/mail": "^8.1.6",
     "@supabase/supabase-js": "^2.39.0",
     "geist": "^1.7.0",

@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #120816;
+  --foreground: #f7efe5;
+  --theater-burgundy: #4f1028;
+  --theater-burgundy-deep: #2a0817;
+  --theater-gold: #d6a64f;
+  --theater-gold-soft: rgba(214, 166, 79, 0.2);
+  --theater-cream: #f7efe5;
+  --theater-panel: rgba(17, 24, 39, 0.82);
+  --theater-panel-strong: rgba(11, 18, 32, 0.92);
+  --theater-border: rgba(255, 236, 204, 0.12);
 }
 
 @theme inline {
@@ -23,4 +31,144 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  background-image:
+    radial-gradient(circle at top, rgba(214, 166, 79, 0.16), transparent 30%),
+    linear-gradient(180deg, rgba(79, 16, 40, 0.65), rgba(18, 8, 22, 0.98)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.03) 0,
+      rgba(255, 255, 255, 0.03) 14px,
+      rgba(0, 0, 0, 0.05) 14px,
+      rgba(0, 0, 0, 0.05) 28px
+    );
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.theater-shell {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.theater-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(214, 166, 79, 0.28), transparent 28%),
+    radial-gradient(circle at 12% 18%, rgba(214, 166, 79, 0.12), transparent 18%),
+    radial-gradient(circle at 88% 18%, rgba(214, 166, 79, 0.12), transparent 18%);
+  pointer-events: none;
+  z-index: -2;
+}
+
+.theater-shell::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(214, 166, 79, 0.08);
+  border-radius: 28px;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.theater-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+    var(--theater-panel);
+  border: 1px solid var(--theater-border);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+}
+
+.theater-panel-strong {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)),
+    var(--theater-panel-strong);
+  border: 1px solid rgba(214, 166, 79, 0.14);
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.theater-title {
+  letter-spacing: -0.04em;
+  color: var(--theater-cream);
+  text-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.theater-subtitle {
+  color: rgba(247, 239, 229, 0.72);
+}
+
+.theater-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(214, 166, 79, 0.2);
+  background: rgba(214, 166, 79, 0.12);
+  color: var(--theater-cream);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.theater-chip::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--theater-gold);
+  box-shadow: 0 0 12px rgba(214, 166, 79, 0.7);
+}
+
+.theater-link {
+  color: #f4d7a1;
+  text-decoration: none;
+}
+
+.theater-link:hover {
+  color: #fde7bb;
+}
+
+.theater-curtain {
+  position: relative;
+}
+
+.theater-curtain::before,
+.theater-curtain::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 22px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), transparent 18%),
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.02) 0,
+      rgba(255, 255, 255, 0.02) 10px,
+      rgba(0, 0, 0, 0.06) 10px,
+      rgba(0, 0, 0, 0.06) 20px
+    ),
+    linear-gradient(180deg, #6c1736, #3a0b1d);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.theater-curtain::before {
+  left: 0;
+  border-radius: 18px 0 0 18px;
+}
+
+.theater-curtain::after {
+  right: 0;
+  border-radius: 0 18px 18px 0;
+}
 }
