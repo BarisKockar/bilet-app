@@ -2,9 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getStoredSession } from "../../lib/auth-storage";
 import { supabase } from "../../lib/supabase";
-import { useIsMobile } from "../../lib/use-is-mobile";
 
 type AppUser = {
   id: number;
@@ -49,7 +47,8 @@ type AuditLogItem = {
 
 export default function AdminPage() {
   const router = useRouter();
-  const isMobile = useIsMobile();
+
+  const [isMobile, setIsMobile] = useState(false);
 
   const [users, setUsers] = useState<AppUser[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -76,9 +75,17 @@ export default function AdminPage() {
   const [excludedSeats, setExcludedSeats] = useState("");
 
   useEffect(() => {
-    const session = getStoredSession();
+    const checkScreen = () => setIsMobile(window.innerWidth < 768);
+    checkScreen();
+    window.addEventListener("resize", checkScreen);
+    return () => window.removeEventListener("resize", checkScreen);
+  }, []);
 
-    if (!session.isLoggedIn || session.userRole !== "admin") {
+  useEffect(() => {
+    const loggedIn = localStorage.getItem("is_logged_in");
+    const role = localStorage.getItem("ticket_user_role");
+
+    if (loggedIn !== "true" || role !== "admin") {
       router.push("/login");
       return;
     }
@@ -168,7 +175,7 @@ export default function AdminPage() {
   }
 
   async function deleteUser(id: number, username: string) {
-    const currentUsername = getStoredSession().username;
+    const currentUsername = localStorage.getItem("ticket_username");
 
     if (username === currentUsername) {
       alert("Kendi hesabını buradan silemezsin.");
@@ -205,7 +212,7 @@ export default function AdminPage() {
   }
 
   async function toggleRole(user: AppUser) {
-    const currentUsername = getStoredSession().username;
+    const currentUsername = localStorage.getItem("ticket_username");
 
     if (user.username === currentUsername && user.role === "admin") {
       alert("Kendi admin yetkini buradan kaldıramazsın.");
@@ -465,11 +472,9 @@ export default function AdminPage() {
 
   return (
     <main
-      className="theater-shell"
       style={{
         minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top, rgba(214,166,79,0.1), transparent 24%), linear-gradient(180deg, #0f172a 0%, #0b1020 100%)",
+        background: "#0b1020",
         color: "white",
         padding: isMobile ? 12 : 24,
         fontFamily: "Arial, sans-serif",
@@ -477,7 +482,6 @@ export default function AdminPage() {
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div
-          className="theater-panel-strong theater-curtain theater-stage-top"
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -486,18 +490,11 @@ export default function AdminPage() {
             flexWrap: "wrap",
             flexDirection: isMobile ? "column" : "row",
             marginBottom: 24,
-            borderRadius: 28,
-            padding: isMobile ? 18 : 24,
           }}
         >
           <div>
-            <div className="theater-chip" style={{ marginBottom: 14 }}>
-              Reji Masasi
-            </div>
-            <h1 className="theater-title" style={{ margin: 0, fontSize: isMobile ? 26 : 32 }}>
-              Admin Paneli
-            </h1>
-            <p className="theater-subtitle">
+            <h1 style={{ margin: 0, fontSize: isMobile ? 26 : 32 }}>Admin Paneli</h1>
+            <p style={{ color: "#cbd5e1" }}>
               Kullanıcılar, etkinlikler, satışlar, loglar ve koltuk planı yönetimi
             </p>
           </div>
@@ -866,60 +863,55 @@ export default function AdminPage() {
 }
 
 const cardStyle: React.CSSProperties = {
-  background:
-    "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)), rgba(11,18,32,0.88)",
-  padding: 22,
-  borderRadius: 24,
-  border: "1px solid rgba(214,166,79,0.14)",
-  boxShadow: "0 24px 60px rgba(0,0,0,0.34)",
-  backdropFilter: "blur(16px)",
+  background: "#111827",
+  padding: 20,
+  borderRadius: 18,
+  border: "1px solid rgba(255,255,255,0.08)",
 };
 
 const rowCardStyle: React.CSSProperties = {
-  background: "rgba(15,23,42,0.82)",
-  borderRadius: 18,
-  padding: 16,
+  background: "#0f172a",
+  borderRadius: 14,
+  padding: 14,
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
   gap: 12,
   flexWrap: "wrap",
-  border: "1px solid rgba(255,255,255,0.08)",
 };
 
 const emptyBoxStyle: React.CSSProperties = {
-  background: "rgba(15,23,42,0.82)",
-  borderRadius: 16,
-  padding: 14,
+  background: "#0f172a",
+  borderRadius: 12,
+  padding: 12,
   color: "#94a3b8",
-  border: "1px solid rgba(255,255,255,0.08)",
 };
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "12px 14px",
-  borderRadius: 14,
-  border: "1px solid rgba(255,255,255,0.1)",
-  background: "rgba(15,23,42,0.82)",
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "#111827",
   color: "white",
   outline: "none",
 };
 
 const secondaryBtn: React.CSSProperties = {
-  padding: "12px 16px",
-  borderRadius: 14,
-  border: "1px solid rgba(255,255,255,0.08)",
-  background: "linear-gradient(180deg, #41546f, #29364a)",
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "none",
+  background: "#334155",
   color: "white",
   fontWeight: 700,
   cursor: "pointer",
 };
 
 const primaryBtn: React.CSSProperties = {
-  padding: "12px 16px",
-  borderRadius: 14,
-  border: "1px solid rgba(255,255,255,0.08)",
-  background: "linear-gradient(180deg, #375ad8, #1f3fa8)",
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "none",
+  background: "#2563eb",
   color: "white",
   fontWeight: 700,
   cursor: "pointer",
@@ -927,39 +919,39 @@ const primaryBtn: React.CSSProperties = {
 
 const dangerBtn: React.CSSProperties = {
   padding: "12px 16px",
-  borderRadius: 14,
-  border: "1px solid rgba(255,255,255,0.08)",
-  background: "linear-gradient(180deg, #dc4b54, #9f1d2b)",
+  borderRadius: 10,
+  border: "none",
+  background: "#dc2626",
   color: "white",
   fontWeight: 700,
   cursor: "pointer",
 };
 
 const warnBtn: React.CSSProperties = {
-  padding: "12px 14px",
-  borderRadius: 14,
-  border: "1px solid rgba(214,166,79,0.18)",
-  background: "linear-gradient(180deg, #f1b84a, #b6781b)",
-  color: "#1a1206",
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "none",
+  background: "#f59e0b",
+  color: "#111827",
   fontWeight: 700,
   cursor: "pointer",
 };
 
 const roleBtn: React.CSSProperties = {
-  padding: "12px 14px",
-  borderRadius: 14,
-  border: "1px solid rgba(255,255,255,0.08)",
-  background: "linear-gradient(180deg, #18b38b, #0d7b60)",
-  color: "#ecfff9",
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "none",
+  background: "#10b981",
+  color: "#052e16",
   fontWeight: 700,
   cursor: "pointer",
 };
 
 const dangerBtnSmall: React.CSSProperties = {
-  padding: "12px 14px",
-  borderRadius: 14,
-  border: "1px solid rgba(255,255,255,0.08)",
-  background: "linear-gradient(180deg, #dc4b54, #9f1d2b)",
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "none",
+  background: "#ef4444",
   color: "white",
   fontWeight: 700,
   cursor: "pointer",

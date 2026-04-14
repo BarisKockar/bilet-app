@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { authPageStyles } from "../../lib/auth-page-styles";
-import { saveStoredSession } from "../../lib/auth-storage";
 import { supabase } from "../../lib/supabase";
 
 export default function LoginPage() {
@@ -34,33 +32,43 @@ export default function LoginPage() {
       return;
     }
 
-    saveStoredSession({
-      userName: user.name,
-      username: user.username,
-      userRole: user.role,
-    });
+    localStorage.setItem("is_logged_in", "true");
+    localStorage.setItem("ticket_user_name", user.name);
+    localStorage.setItem("ticket_username", user.username);
+    localStorage.setItem("ticket_user_role", user.role);
 
     router.push("/");
   }
 
   return (
-    <main className="theater-shell" style={authPageStyles.page}>
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#0b1020",
+        color: "white",
+        fontFamily: "Arial, sans-serif",
+        padding: 20,
+      }}
+    >
       <div
-        className="theater-panel-strong theater-curtain"
         style={{
+          width: "100%",
           maxWidth: 420,
-          ...authPageStyles.card,
+          background: "#111827",
+          borderRadius: 20,
+          padding: 28,
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
         }}
       >
-        <div className="theater-chip" style={{ marginBottom: 18 }}>
-          Sahne Girişi
-        </div>
-
-        <h1 className="theater-title" style={{ marginTop: 0, marginBottom: 10, fontSize: 34 }}>
+        <h1 style={{ marginTop: 0, marginBottom: 10, fontSize: 30 }}>
           Giriş Yap
         </h1>
 
-        <p className="theater-subtitle" style={{ marginBottom: 22 }}>
+        <p style={{ color: "#cbd5e1", marginBottom: 22 }}>
           Bilet satış paneline erişmek için giriş yap.
         </p>
 
@@ -69,7 +77,7 @@ export default function LoginPage() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Kullanıcı adı"
-            style={authPageStyles.input}
+            style={inputStyle}
           />
 
           <input
@@ -77,7 +85,7 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Şifre"
             type="password"
-            style={authPageStyles.input}
+            style={inputStyle}
           />
 
           {errorText && (
@@ -91,9 +99,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="theater-subtitle" style={{ marginTop: 16, fontSize: 14 }}>
+        <div style={{ marginTop: 16, fontSize: 14, color: "#cbd5e1" }}>
           Hesabın yok mu?{" "}
-          <Link href="/signup" style={authPageStyles.link}>
+          <Link href="/signup" style={{ color: "#93c5fd", textDecoration: "none" }}>
             Kayıt Ol
           </Link>
         </div>
@@ -101,6 +109,17 @@ export default function LoginPage() {
     </main>
   );
 }
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "12px 14px",
+  borderRadius: 12,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "#0f172a",
+  color: "white",
+  marginBottom: 14,
+  outline: "none",
+};
 
 const loginButton: React.CSSProperties = {
   width: "100%",
