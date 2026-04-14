@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { QRCodeCanvas } from "qrcode.react";
+import { getStoredUserName, setStoredUserName } from "../../../lib/auth-storage";
+import { supabase } from "../../../lib/supabase";
+import { useIsMobile } from "../../../lib/use-is-mobile";
 
 type SeatItem = {
   id: number;
@@ -25,12 +26,6 @@ type NotificationItem = {
   created_at: string;
 };
 
-type SettingsItem = {
-  bank_name: string;
-  iban_name: string;
-  iban_number: string;
-};
-
 type SaleRow = {
   id: number;
   amount: number;
@@ -47,12 +42,12 @@ type EventRow = {
 
 const columns = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 const maxRows = 20;
+const LOCK_TIMEOUT_MS = 2 * 60 * 1000;
 
 export default function Page() {
   const params = useParams();
   const eventId = Number(params.id);
-
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
 
   const [seats, setSeats] = useState<SeatItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -73,25 +68,8 @@ export default function Page() {
   const [refundConfirmText, setRefundConfirmText] = useState("");
   const [refundLoading, setRefundLoading] = useState(false);
 
-  const [ibanInfo, setIbanInfo] = useState<SettingsItem>({
-    bank_name: "",
-    iban_name: "",
-    iban_number: "",
-  });
-
   useEffect(() => {
-    const checkScreen = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkScreen();
-    window.addEventListener("resize", checkScreen);
-
-    return () => window.removeEventListener("resize", checkScreen);
-  }, []);
-
-  useEffect(() => {
-    const savedName = localStorage.getItem("ticket_user_name");
+    const savedName = getStoredUserName();
 
     if (savedName) {
       setUserName(savedName);
@@ -100,8 +78,9 @@ export default function Page() {
 
     const name = window.prompt("Kullanıcı adını gir");
     if (name && name.trim()) {
-      localStorage.setItem("ticket_user_name", name.trim());
-      setUserName(name.trim());
+      const nextUserName = name.trim();
+      setStoredUserName(nextUserName);
+      setUserName(nextUserName);
     }
   }, []);
 
@@ -110,7 +89,7 @@ export default function Page() {
 
     void getSeats();
     void getNotifications();
-    void getSettings();
+    void clearExpiredLocks();
   }, [eventId]);
 
   useEffect(() => {
@@ -165,6 +144,17 @@ export default function Page() {
     return () => clearInterval(interval);
   }, [eventId]);
 
+  useEffect(() => {
+    if (!eventId) return;
+
+    const interval = setInterval(() => {
+      void clearExpiredLocks();
+      void getSeats();
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [eventId]);
+
   async function getSeats() {
     const { data, error } = await supabase
       .from("seats")
@@ -177,6 +167,25 @@ export default function Page() {
     }
 
     setSeats((data as SeatItem[]) || []);
+  }
+
+  async function clearExpiredLocks() {
+    const expireBefore = new Date(Date.now() - LOCK_TIMEOUT_MS).toISOString();
+
+    const { error } = await supabase
+      .from("seats")
+      .update({
+        status: "available",
+        locked_by: null,
+        locked_at: null,
+      })
+      .eq("event_id", eventId)
+      .eq("status", "locking")
+      .lt("locked_at", expireBefore);
+
+    if (error) {
+      console.error("clearExpiredLocks error:", error);
+    }
   }
 
   async function getNotifications() {
@@ -195,21 +204,59 @@ export default function Page() {
     setNotifications((data as NotificationItem[]) || []);
   }
 
-  async function getSettings() {
+  async function lockSeatById(seatId: number) {
+    return supabase.rpc("lock_seat", {
+      p_event_id: eventId,
+      p_seat_id: seatId,
+      p_user_name: userName,
+    });
+  }
+
+  async function unlockSeatById(seatId: number) {
+    return supabase.rpc("unlock_seat", {
+      p_event_id: eventId,
+      p_seat_id: seatId,
+    });
+  }
+
+  async function getEventDetails() {
     const { data, error } = await supabase
-      .from("settings")
+      .from("events")
       .select("*")
-      .limit(1)
+      .eq("id", eventId)
       .single();
 
     if (error) {
-      console.error("getSettings error:", error);
-      return;
+      console.error("event fetch error:", error);
     }
 
-    if (data) {
-      setIbanInfo(data as SettingsItem);
-    }
+    return data as EventRow | null;
+  }
+
+  async function createNotification(type: string, message: string) {
+    await supabase.from("notifications").insert({
+      event_id: eventId,
+      type,
+      message,
+    });
+  }
+
+  async function sendTicketEmail(params: {
+    customerName: string;
+    customerEmail: string;
+    seatCode: string;
+    eventTitle: string;
+    eventDate: string;
+    paymentType: "cash" | "iban";
+    amount: number;
+  }) {
+    return fetch("/api/send-ticket", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    });
   }
 
   async function changeUserName() {
@@ -218,8 +265,9 @@ export default function Page() {
     const name = window.prompt("Yeni kullanıcı adı gir", userName || "");
     if (!name || !name.trim()) return;
 
-    localStorage.setItem("ticket_user_name", name.trim());
-    setUserName(name.trim());
+    const nextUserName = name.trim();
+    setStoredUserName(nextUserName);
+    setUserName(nextUserName);
 
     await getSeats();
   }
@@ -246,10 +294,7 @@ export default function Page() {
       const alreadySelected = selectedSeats.some((s) => s.id === seat.id);
 
       if (alreadySelected) {
-        const { error: unlockError } = await supabase.rpc("unlock_seat", {
-          p_event_id: eventId,
-          p_seat_id: seat.id,
-        });
+        const { error: unlockError } = await unlockSeatById(seat.id);
 
         if (unlockError) {
           console.error("unlock_seat error:", unlockError);
@@ -261,11 +306,7 @@ export default function Page() {
         return;
       }
 
-      const { data, error } = await supabase.rpc("lock_seat", {
-        p_event_id: eventId,
-        p_seat_id: seat.id,
-        p_user_name: userName,
-      });
+      const { data, error } = await lockSeatById(seat.id);
 
       if (error) {
         console.error("lock_seat error:", error);
@@ -300,10 +341,7 @@ export default function Page() {
       selectedSeat.id !== seat.id &&
       selectedSeat.status === "locking"
     ) {
-      const { error: unlockError } = await supabase.rpc("unlock_seat", {
-        p_event_id: eventId,
-        p_seat_id: selectedSeat.id,
-      });
+      const { error: unlockError } = await unlockSeatById(selectedSeat.id);
 
       if (unlockError) {
         console.error("previous unlock_seat error:", unlockError);
@@ -312,11 +350,7 @@ export default function Page() {
       }
     }
 
-    const { data, error } = await supabase.rpc("lock_seat", {
-      p_event_id: eventId,
-      p_seat_id: seat.id,
-      p_user_name: userName,
-    });
+    const { data, error } = await lockSeatById(seat.id);
 
     if (error) {
       console.error("lock_seat error:", error);
@@ -372,48 +406,32 @@ export default function Page() {
       return;
     }
 
-    const { data: eventData, error: eventError } = await supabase
-      .from("events")
-      .select("*")
-      .eq("id", eventId)
-      .single();
-
-    if (eventError) {
-      console.error("event fetch error:", eventError);
-    }
+    const eventData = await getEventDetails();
 
     try {
-      const mailResponse = await fetch("/api/send-ticket", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          customerName: customerName.trim(),
-          customerEmail: customerEmail.trim(),
-          seatCode: selectedSeat.seat_code,
-          eventTitle: (eventData as EventRow | null)?.title || `Etkinlik ${eventId}`,
-          eventDate: (eventData as EventRow | null)?.event_date || "",
-          paymentType,
-          amount: Number(amount),
-        }),
+      const mailResponse = await sendTicketEmail({
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        seatCode: selectedSeat.seat_code,
+        eventTitle: eventData?.title || `Etkinlik ${eventId}`,
+        eventDate: eventData?.event_date || "",
+        paymentType,
+        amount: Number(amount),
       });
 
       const mailResult = await mailResponse.json();
 
       if (mailResult?.success) {
-        await supabase.from("notifications").insert({
-          event_id: eventId,
-          type: "email_sent",
-          message: `${selectedSeat.seat_code} için bilet maili gönderildi - ${customerEmail.trim()}`,
-        });
+        await createNotification(
+          "email_sent",
+          `${selectedSeat.seat_code} için bilet maili gönderildi - ${customerEmail.trim()}`
+        );
       } else {
         console.error("mail send failed:", mailResult);
-        await supabase.from("notifications").insert({
-          event_id: eventId,
-          type: "email_sent",
-          message: `${selectedSeat.seat_code} için mail gönderimi başarısız oldu - ${customerEmail.trim()}`,
-        });
+        await createNotification(
+          "email_sent",
+          `${selectedSeat.seat_code} için mail gönderimi başarısız oldu - ${customerEmail.trim()}`
+        );
       }
     } catch (mailError) {
       console.error("mail request error:", mailError);
@@ -455,27 +473,17 @@ export default function Page() {
         }
       }
 
-      const { data: eventData } = await supabase
-        .from("events")
-        .select("*")
-        .eq("id", eventId)
-        .single();
+      const eventData = await getEventDetails();
 
       try {
-        await fetch("/api/send-ticket", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            customerName: customerName.trim(),
-            customerEmail: customerEmail.trim(),
-            seatCode: selectedSeats.map((s) => s.seat_code).join(", "),
-            eventTitle: (eventData as EventRow | null)?.title || `Etkinlik ${eventId}`,
-            eventDate: (eventData as EventRow | null)?.event_date || "",
-            paymentType,
-            amount: Number(amount) * selectedSeats.length,
-          }),
+        await sendTicketEmail({
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim(),
+          seatCode: selectedSeats.map((s) => s.seat_code).join(", "),
+          eventTitle: eventData?.title || `Etkinlik ${eventId}`,
+          eventDate: eventData?.event_date || "",
+          paymentType,
+          amount: Number(amount) * selectedSeats.length,
         });
       } catch (mailError) {
         console.error("multi mail request error:", mailError);
@@ -494,10 +502,7 @@ export default function Page() {
 
   async function resetForm(shouldUnlock = true) {
     if (shouldUnlock && selectedSeat && selectedSeat.status === "locking") {
-      const { error } = await supabase.rpc("unlock_seat", {
-        p_event_id: eventId,
-        p_seat_id: selectedSeat.id,
-      });
+      const { error } = await unlockSeatById(selectedSeat.id);
 
       if (error) {
         console.error("unlock_seat error:", error);
@@ -506,10 +511,7 @@ export default function Page() {
 
     if (shouldUnlock && selectedSeats.length > 0) {
       for (const seat of selectedSeats) {
-        const { error } = await supabase.rpc("unlock_seat", {
-          p_event_id: eventId,
-          p_seat_id: seat.id,
-        });
+        const { error } = await unlockSeatById(seat.id);
 
         if (error) {
           console.error("multi unlock_seat error:", error);
@@ -587,11 +589,7 @@ export default function Page() {
       return;
     }
 
-    await supabase.from("notifications").insert({
-      event_id: eventId,
-      type: "refund",
-      message: `${refundSeatItem.seat_code} koltuğu iade edildi`,
-    });
+    await createNotification("refund", `${refundSeatItem.seat_code} koltuğu iade edildi`);
 
     setRefundLoading(false);
     setRefundSeatItem(null);
@@ -625,22 +623,6 @@ export default function Page() {
   const seatWidth = isMobile ? 42 : 64;
   const seatHeight = isMobile ? 34 : 42;
   const labelWidth = isMobile ? 32 : 50;
-
-  const paymentDescription = isMultiSelectMode
-    ? selectedSeats.map((s) => s.seat_code).join(", ")
-    : selectedSeat?.seat_code || "-";
-
-  const PUBLIC_BASE_URL = "https://bilet-app-863n.vercel.app/odeme"; // kendi canlı domainin neyse onu yaz
-
-  const qrValue = `${PUBLIC_BASE_URL}/odeme?bank=${encodeURIComponent(
-  ibanInfo.bank_name
-)}&receiver=${encodeURIComponent(
-  ibanInfo.iban_name
-)}&iban=${encodeURIComponent(
-  ibanInfo.iban_number
-)}&desc=${encodeURIComponent(
-  paymentDescription
-)}&amount=${encodeURIComponent(amount || "")}`;
 
   return (
     <main
@@ -1061,48 +1043,7 @@ export default function Page() {
               }}
             >
               <h3 style={{ marginTop: 0 }}>Bildirimler</h3>
-              {paymentType === "iban" && (
-                <div
-                  style={{
-                    background: "#0f172a",
-                    padding: 12,
-                    borderRadius: 12,
-                    marginBottom: 12,
-                    fontSize: 14,
-                    lineHeight: 1.6,
-                    textAlign: "center",
-                  }}
-                >
-                  <div style={{ marginBottom: 10 }}>
-                    <strong>Banka:</strong> {ibanInfo.bank_name}
-                  </div>
-
-                  <div style={{ marginBottom: 10 }}>
-                    <strong>Alıcı:</strong> {ibanInfo.iban_name}
-                  </div>
-
-                  <div style={{ marginBottom: 10 }}>
-                    <strong>IBAN:</strong> {ibanInfo.iban_number}
-                  </div>
-
-                  <div style={{ marginBottom: 14 }}>
-                    <strong>Açıklama:</strong> {paymentDescription}
-                  </div>
-
-                  <QRCodeCanvas
-                    value={qrValue}
-                    size={180}
-                    bgColor="#ffffff"
-                    fgColor="#000000"
-                    level="H"
-                    includeMargin
-                  />
-
-                  <p style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
-                    Telefon kamerasıyla okutunca IBAN bilgileri görünür.
-                  </p>
-                </div>
-              )}
+              
               <div style={{ display: "grid", gap: 10 }}>
                 {notifications.map((n) => (
                   <div
