@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { clearStoredSession, getStoredSession } from "@/lib/auth-storage";
+import { clearStoredSession, getStoredSession } from "../lib/auth-storage";
 import { supabase } from "../lib/supabase";
-import { useIsMobile } from "@/lib/use-is-mobile";
+import { useIsMobile } from "../lib/use-is-mobile";
 
 type EventItem = {
   id: number;
