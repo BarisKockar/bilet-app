@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { clearStoredSession, getStoredSession } from "@/lib/auth-storage";
 import { supabase } from "../lib/supabase";
+import { useIsMobile } from "@/lib/use-is-mobile";
 
 type EventItem = {
   id: number;
@@ -17,39 +19,46 @@ type CustomerMailItem = {
   email: string;
   created_at: string;
   ticket_codes: string[];
+  event_dates: string[];
 };
+
+function formatEventDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
 export default function Home() {
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   const [events, setEvents] = useState<EventItem[]>([]);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
-  const [isMobile, setIsMobile] = useState(false);
 
   const [customerMails, setCustomerMails] = useState<CustomerMailItem[]>([]);
   const [showMailMenu, setShowMailMenu] = useState(false);
   const [loadingMails, setLoadingMails] = useState(false);
 
   useEffect(() => {
-    const checkScreen = () => setIsMobile(window.innerWidth < 768);
-    checkScreen();
-    window.addEventListener("resize", checkScreen);
-    return () => window.removeEventListener("resize", checkScreen);
-  }, []);
+    const session = getStoredSession();
 
-  useEffect(() => {
-    const loggedIn = localStorage.getItem("is_logged_in");
-    const savedUserName = localStorage.getItem("ticket_user_name");
-    const savedRole = localStorage.getItem("ticket_user_role");
-
-    if (loggedIn !== "true") {
+    if (!session.isLoggedIn) {
       router.push("/login");
       return;
     }
 
-    if (savedUserName) setUserName(savedUserName);
-    if (savedRole) setUserRole(savedRole);
+    if (session.userName) setUserName(session.userName);
+    if (session.userRole) setUserRole(session.userRole);
 
     setIsCheckingAuth(false);
   }, [router]);
@@ -100,7 +109,7 @@ export default function Home() {
 
     const { data: salesData, error: salesError } = await supabase
       .from("sales")
-      .select("customer_email, seat_id")
+      .select("customer_email, seat_id, event_id")
       .order("created_at", { ascending: false });
 
     if (salesError) {
@@ -109,7 +118,8 @@ export default function Home() {
       return;
     }
 
-    const salesRows = (salesData as { customer_email?: string; seat_id?: number }[]) || [];
+    const salesRows =
+      (salesData as { customer_email?: string; seat_id?: number; event_id?: number }[]) || [];
 
     const gmailEmails = Array.from(
       new Set(
@@ -139,7 +149,8 @@ export default function Home() {
       )
     );
 
-    let seatCodeMap = new Map<number, string>();
+    const seatCodeMap = new Map<number, string>();
+    const eventDateMap = new Map<number, string>();
 
     if (seatIds.length > 0) {
       const { data: seatsData, error: seatsError } = await supabase
@@ -156,7 +167,31 @@ export default function Home() {
       }
     }
 
+    const eventIds = Array.from(
+      new Set(
+        salesRows
+          .map((row) => row.event_id)
+          .filter((id): id is number => typeof id === "number")
+      )
+    );
+
+    if (eventIds.length > 0) {
+      const { data: eventsData, error: eventsError } = await supabase
+        .from("events")
+        .select("id, event_date")
+        .in("id", eventIds);
+
+      if (eventsError) {
+        console.error("syncCustomerMails events error:", eventsError);
+      } else {
+        ((eventsData as { id: number; event_date: string }[]) || []).forEach((event) => {
+          eventDateMap.set(event.id, formatEventDate(event.event_date));
+        });
+      }
+    }
+
     const emailToTickets = new Map<string, string[]>();
+    const emailToDates = new Map<string, string[]>();
 
     for (const row of salesRows) {
       const email = (row.customer_email || "").trim().toLowerCase();
@@ -164,15 +199,28 @@ export default function Home() {
 
       const seatCode =
         typeof row.seat_id === "number" ? seatCodeMap.get(row.seat_id) : undefined;
+      const eventDate =
+        typeof row.event_id === "number" ? eventDateMap.get(row.event_id) : undefined;
 
       if (!emailToTickets.has(email)) {
         emailToTickets.set(email, []);
+      }
+
+      if (!emailToDates.has(email)) {
+        emailToDates.set(email, []);
       }
 
       if (seatCode) {
         const arr = emailToTickets.get(email)!;
         if (!arr.includes(seatCode)) {
           arr.push(seatCode);
+        }
+      }
+
+      if (eventDate) {
+        const arr = emailToDates.get(email)!;
+        if (!arr.includes(eventDate)) {
+          arr.push(eventDate);
         }
       }
     }
@@ -194,12 +242,14 @@ export default function Home() {
         email: item.email,
         created_at: item.created_at,
         ticket_codes: emailToTickets.get(item.email) || [],
+        event_dates: emailToDates.get(item.email) || [],
       })
     );
 
     setCustomerMails(finalRows);
     setLoadingMails(false);
   }
+
   async function removeTrackedMail(item: CustomerMailItem) {
     const ok = window.confirm("Mail atıldı mı gençler?");
     if (!ok) return;
@@ -219,10 +269,7 @@ export default function Home() {
   }
 
   function logout() {
-    localStorage.removeItem("is_logged_in");
-    localStorage.removeItem("ticket_user_name");
-    localStorage.removeItem("ticket_username");
-    localStorage.removeItem("ticket_user_role");
+    clearStoredSession();
     router.push("/login");
   }
 
@@ -367,6 +414,10 @@ export default function Home() {
 
                         <span style={{ fontSize: 12, color: "#94a3b8" }}>
                           Biletler: {item.ticket_codes.length > 0 ? item.ticket_codes.join(", ") : "Yok"}
+                        </span>
+
+                        <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                          Günler: {item.event_dates.length > 0 ? item.event_dates.join(", ") : "Yok"}
                         </span>
                       </button>
                     ))}
