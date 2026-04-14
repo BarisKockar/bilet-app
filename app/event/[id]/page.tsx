@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import { getStoredUserName, setStoredUserName } from "../../../lib/auth-storage";
 import { supabase } from "../../../lib/supabase";
 import { useIsMobile } from "../../../lib/use-is-mobile";
-import { QRCodeCanvas } from "qrcode.react";
 
 type SeatItem = {
   id: number;
@@ -653,15 +652,6 @@ export default function Page() {
   const seatWidth = isMobile ? 42 : 64;
   const seatHeight = isMobile ? 34 : 42;
   const labelWidth = isMobile ? 32 : 50;
-  const paymentDescription = isMultiSelectMode
-    ? selectedSeats.map((s) => s.seat_code).join(", ")
-    : selectedSeat?.seat_code || "-";
-  const PUBLIC_BASE_URL = "https://bilet-app-863n.vercel.app/odeme";
-  const qrValue = `${PUBLIC_BASE_URL}/odeme?bank=${encodeURIComponent(
-    ibanInfo.bank_name
-  )}&receiver=${encodeURIComponent(ibanInfo.iban_name)}&iban=${encodeURIComponent(
-    ibanInfo.iban_number
-  )}&desc=${encodeURIComponent(paymentDescription)}&amount=${encodeURIComponent(amount || "")}`;
 
   return (
     <main
@@ -1105,23 +1095,6 @@ export default function Page() {
                   <div style={{ marginBottom: 10 }}>
                     <strong>IBAN:</strong> {ibanInfo.iban_number}
                   </div>
-
-                  <div style={{ marginBottom: 14 }}>
-                    <strong>Açıklama:</strong> {paymentDescription}
-                  </div>
-
-                  <QRCodeCanvas
-                    value={qrValue}
-                    size={180}
-                    bgColor="#ffffff"
-                    fgColor="#000000"
-                    level="H"
-                    includeMargin
-                  />
-
-                  <p style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
-                    Telefon kamerasıyla okutunca IBAN bilgileri görünür.
-                  </p>
                 </div>
               )}
               <div style={{ display: "grid", gap: 10 }}>
