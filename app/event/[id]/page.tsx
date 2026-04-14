@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getStoredUserName, setStoredUserName } from "../../../lib/auth-storage";
 import { supabase } from "../../../lib/supabase";
 import { useIsMobile } from "../../../lib/use-is-mobile";
+import { QRCodeCanvas } from "qrcode.react";
 
 type SeatItem = {
   id: number;
@@ -24,6 +25,12 @@ type NotificationItem = {
   type: string;
   message: string;
   created_at: string;
+};
+
+type SettingsItem = {
+  bank_name: string;
+  iban_name: string;
+  iban_number: string;
 };
 
 type SaleRow = {
@@ -67,6 +74,11 @@ export default function Page() {
   const [refundSale, setRefundSale] = useState<SaleRow | null>(null);
   const [refundConfirmText, setRefundConfirmText] = useState("");
   const [refundLoading, setRefundLoading] = useState(false);
+  const [ibanInfo, setIbanInfo] = useState<SettingsItem>({
+    bank_name: "",
+    iban_name: "",
+    iban_number: "",
+  });
 
   useEffect(() => {
     const savedName = getStoredUserName();
@@ -89,6 +101,7 @@ export default function Page() {
 
     void getSeats();
     void getNotifications();
+    void getSettings();
     void clearExpiredLocks();
   }, [eventId]);
 
@@ -202,6 +215,23 @@ export default function Page() {
     }
 
     setNotifications((data as NotificationItem[]) || []);
+  }
+
+  async function getSettings() {
+    const { data, error } = await supabase
+      .from("settings")
+      .select("*")
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.error("getSettings error:", error);
+      return;
+    }
+
+    if (data) {
+      setIbanInfo(data as SettingsItem);
+    }
   }
 
   async function lockSeatById(seatId: number) {
@@ -623,6 +653,15 @@ export default function Page() {
   const seatWidth = isMobile ? 42 : 64;
   const seatHeight = isMobile ? 34 : 42;
   const labelWidth = isMobile ? 32 : 50;
+  const paymentDescription = isMultiSelectMode
+    ? selectedSeats.map((s) => s.seat_code).join(", ")
+    : selectedSeat?.seat_code || "-";
+  const PUBLIC_BASE_URL = "https://bilet-app-863n.vercel.app/odeme";
+  const qrValue = `${PUBLIC_BASE_URL}/odeme?bank=${encodeURIComponent(
+    ibanInfo.bank_name
+  )}&receiver=${encodeURIComponent(ibanInfo.iban_name)}&iban=${encodeURIComponent(
+    ibanInfo.iban_number
+  )}&desc=${encodeURIComponent(paymentDescription)}&amount=${encodeURIComponent(amount || "")}`;
 
   return (
     <main
@@ -1043,7 +1082,48 @@ export default function Page() {
               }}
             >
               <h3 style={{ marginTop: 0 }}>Bildirimler</h3>
-              
+              {paymentType === "iban" && (
+                <div
+                  style={{
+                    background: "#0f172a",
+                    padding: 12,
+                    borderRadius: 12,
+                    marginBottom: 12,
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ marginBottom: 10 }}>
+                    <strong>Banka:</strong> {ibanInfo.bank_name}
+                  </div>
+
+                  <div style={{ marginBottom: 10 }}>
+                    <strong>Alıcı:</strong> {ibanInfo.iban_name}
+                  </div>
+
+                  <div style={{ marginBottom: 10 }}>
+                    <strong>IBAN:</strong> {ibanInfo.iban_number}
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <strong>Açıklama:</strong> {paymentDescription}
+                  </div>
+
+                  <QRCodeCanvas
+                    value={qrValue}
+                    size={180}
+                    bgColor="#ffffff"
+                    fgColor="#000000"
+                    level="H"
+                    includeMargin
+                  />
+
+                  <p style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
+                    Telefon kamerasıyla okutunca IBAN bilgileri görünür.
+                  </p>
+                </div>
+              )}
               <div style={{ display: "grid", gap: 10 }}>
                 {notifications.map((n) => (
                   <div
