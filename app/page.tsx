@@ -281,7 +281,7 @@ export default function Home() {
       style={{
         minHeight: "100vh",
         background:
-          "radial-gradient(circle at top, rgba(214,166,79,0.16), transparent 28%), linear-gradient(180deg, #4f1028 0%, #120816 100%)",
+          "radial-gradient(circle at top, rgba(214,166,79,0.1), transparent 24%), linear-gradient(180deg, #0f172a 0%, #0b1020 100%)",
         color: "white",
         padding: isMobile ? "20px 12px" : "40px 20px",
         fontFamily: "Arial, sans-serif",
@@ -289,7 +289,7 @@ export default function Home() {
     >
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div
-          className="theater-panel-strong theater-curtain"
+          className="theater-panel-strong theater-curtain theater-stage-top"
           style={{
             display: "flex",
             flexDirection: isMobile ? "column" : "row",

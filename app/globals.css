@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #120816;
+  --background: #0b1020;
   --foreground: #f7efe5;
-  --theater-burgundy: #4f1028;
-  --theater-burgundy-deep: #2a0817;
+  --theater-burgundy: #641b33;
+  --theater-burgundy-deep: #3a0f1f;
   --theater-gold: #d6a64f;
   --theater-gold-soft: rgba(214, 166, 79, 0.2);
   --theater-cream: #f7efe5;
@@ -32,15 +32,8 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   background-image:
-    radial-gradient(circle at top, rgba(214, 166, 79, 0.16), transparent 30%),
-    linear-gradient(180deg, rgba(79, 16, 40, 0.65), rgba(18, 8, 22, 0.98)),
-    repeating-linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.03) 0,
-      rgba(255, 255, 255, 0.03) 14px,
-      rgba(0, 0, 0, 0.05) 14px,
-      rgba(0, 0, 0, 0.05) 28px
-    );
+    radial-gradient(circle at top, rgba(214, 166, 79, 0.12), transparent 26%),
+    linear-gradient(180deg, #0f172a 0%, #0b1020 100%);
 }
 
 * {
@@ -58,9 +51,8 @@ body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 50% -10%, rgba(214, 166, 79, 0.28), transparent 28%),
-    radial-gradient(circle at 12% 18%, rgba(214, 166, 79, 0.12), transparent 18%),
-    radial-gradient(circle at 88% 18%, rgba(214, 166, 79, 0.12), transparent 18%);
+    radial-gradient(circle at 50% -10%, rgba(214, 166, 79, 0.22), transparent 24%),
+    linear-gradient(180deg, rgba(214, 166, 79, 0.08), transparent 22%);
   pointer-events: none;
   z-index: -2;
 }
@@ -69,8 +61,8 @@ body {
   content: "";
   position: absolute;
   inset: 12px;
-  border: 1px solid rgba(214, 166, 79, 0.08);
-  border-radius: 28px;
+  border: 1px solid rgba(214, 166, 79, 0.1);
+  border-radius: 30px;
   pointer-events: none;
   z-index: -1;
 }
@@ -145,11 +137,11 @@ body {
 .theater-curtain::after {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 22px;
+  top: -10px;
+  bottom: -10px;
+  width: 30px;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.08), transparent 18%),
+    linear-gradient(180deg, rgba(255,255,255,0.1), transparent 18%),
     repeating-linear-gradient(
       180deg,
       rgba(255, 255, 255, 0.02) 0,
@@ -157,18 +149,40 @@ body {
       rgba(0, 0, 0, 0.06) 10px,
       rgba(0, 0, 0, 0.06) 20px
     ),
-    linear-gradient(180deg, #6c1736, #3a0b1d);
-  opacity: 0.85;
+    linear-gradient(180deg, #7a1b3f, #421126);
+  opacity: 0.92;
   pointer-events: none;
+  box-shadow: inset -6px 0 12px rgba(0, 0, 0, 0.18);
 }
 
 .theater-curtain::before {
-  left: 0;
-  border-radius: 18px 0 0 18px;
+  left: -8px;
+  border-radius: 22px 0 0 22px;
 }
 
 .theater-curtain::after {
-  right: 0;
-  border-radius: 0 18px 18px 0;
+  right: -8px;
+  border-radius: 0 22px 22px 0;
+}
+
+.theater-shell .theater-stage-top {
+  position: relative;
+}
+
+.theater-shell .theater-stage-top::before {
+  content: "";
+  position: absolute;
+  top: -18px;
+  left: 32px;
+  right: 32px;
+  height: 20px;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0)),
+    linear-gradient(90deg, #7a1b3f, #52152d 30%, #52152d 70%, #7a1b3f);
+  box-shadow:
+    0 8px 20px rgba(0,0,0,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  pointer-events: none;
 }
 }

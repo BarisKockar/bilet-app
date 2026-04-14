@@ -7,7 +7,7 @@ export const authPageStyles = {
     alignItems: "center",
     justifyContent: "center",
     background:
-      "radial-gradient(circle at top, rgba(214,166,79,0.18), transparent 28%), linear-gradient(180deg, #4f1028 0%, #120816 100%)",
+      "radial-gradient(circle at top, rgba(214,166,79,0.1), transparent 24%), linear-gradient(180deg, #0f172a 0%, #0b1020 100%)",
     color: "white",
     fontFamily: "Arial, sans-serif",
     padding: 20,
