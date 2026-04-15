@@ -22,6 +22,13 @@ type CustomerMailItem = {
   event_dates: string[];
 };
 
+type CustomerMailTrackingRow = {
+  id: number;
+  email: string;
+  created_at: string;
+  is_checked?: boolean;
+};
+
 function formatEventDate(value: string) {
   const date = new Date(value);
 
@@ -129,15 +136,32 @@ export default function Home() {
       )
     );
 
-    if (gmailEmails.length > 0) {
-      const rowsToInsert = gmailEmails.map((email) => ({ email }));
+    const { data: existingTrackingData, error: existingTrackingError } = await supabase
+      .from("customer_mail_tracking")
+      .select("id, email, created_at, is_checked");
 
-      const { error: upsertError } = await supabase
+    if (existingTrackingError) {
+      console.error("syncCustomerMails existing tracking error:", existingTrackingError);
+      setLoadingMails(false);
+      return;
+    }
+
+    const existingTrackingRows = (existingTrackingData as CustomerMailTrackingRow[]) || [];
+    const existingTrackingEmails = new Set(
+      existingTrackingRows.map((item) => (item.email || "").trim().toLowerCase())
+    );
+
+    const rowsToInsert = gmailEmails
+      .filter((email) => !existingTrackingEmails.has(email))
+      .map((email) => ({ email }));
+
+    if (rowsToInsert.length > 0) {
+      const { error: insertError } = await supabase
         .from("customer_mail_tracking")
-        .upsert(rowsToInsert, { onConflict: "email" });
+        .insert(rowsToInsert);
 
-      if (upsertError) {
-        console.error("syncCustomerMails upsert error:", upsertError);
+      if (insertError) {
+        console.error("syncCustomerMails insert error:", insertError);
       }
     }
 
@@ -227,7 +251,8 @@ export default function Home() {
 
     const { data: trackingData, error: trackingError } = await supabase
       .from("customer_mail_tracking")
-      .select("*")
+      .select("id, email, created_at, is_checked")
+      .eq("is_checked", false)
       .order("created_at", { ascending: false });
 
     if (trackingError) {
@@ -236,7 +261,8 @@ export default function Home() {
       return;
     }
 
-    const finalRows: CustomerMailItem[] = ((trackingData as { id: number; email: string; created_at: string }[]) || []).map(
+    const trackingRows = (trackingData as CustomerMailTrackingRow[]) || [];
+    const finalRows: CustomerMailItem[] = trackingRows.map(
       (item) => ({
         id: item.id,
         email: item.email,
@@ -256,7 +282,7 @@ export default function Home() {
 
     const { error } = await supabase
       .from("customer_mail_tracking")
-      .delete()
+      .update({ is_checked: true })
       .eq("id", item.id);
 
     if (error) {
