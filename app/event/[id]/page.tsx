@@ -48,7 +48,7 @@ type EventRow = {
 
 const columns = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 const maxRows = 20;
-const LOCK_TIMEOUT_MS = 2 * 60 * 1000;
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000;
 
 export default function Page() {
   const params = useParams();
